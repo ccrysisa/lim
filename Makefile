@@ -1,7 +1,7 @@
 SRC:=src
 BUILD:=build
 
-CFLAGS=-Wall -Wextra -std=c11 -pedantic
+CFLAGS=-Wall -Wextra -Wswitch-enum -std=c11 -pedantic
 LIBS= 
 
 $(BUILD)/lim: $(SRC)/main.c
