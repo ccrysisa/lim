@@ -1,5 +1,16 @@
-CFLAGS = -Wall -Wextra -std=c11 -pedantic
-LIBS = 
+SRC:=src
+BUILD:=build
 
-lim: src/main.c
+CFLAGS=-Wall -Wextra -std=c11 -pedantic
+LIBS= 
+
+$(BUILD)/lim: $(SRC)/main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+
+run: $(BUILD)/lim
+	./$<
+
+clean:
+	@rm -rf build/*
+
+.PHONY: run clean
