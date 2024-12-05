@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEBUG 1
 #define ARRAY_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
 #define LIM_STACK_CAPACITY 1024
 #define LIM_PROGRAM_CAPACITY 1024
@@ -15,6 +16,7 @@ typedef enum {
     TRAP_DIV_BY_ZERO,
     TRAP_ILLEGAL_INST,
     TRAP_ILLEGAL_INST_ACCESS,
+    TRAP_ILLEGAL_OPERAND,
 } Trap;
 
 const char *trap_as_cstr(Trap trap)
@@ -32,6 +34,8 @@ const char *trap_as_cstr(Trap trap)
         return "TRAP_ILLEGAL_INST";
     case TRAP_ILLEGAL_INST_ACCESS:
         return "TRAP_ILLEGAL_INST_ACCESS";
+    case TRAP_ILLEGAL_OPERAND:
+        return "TRAP_ILLEGAL_OPERAND";
     default:
         assert(0 && "trap_as_cstr: unreachable");
     }
@@ -47,6 +51,11 @@ typedef enum {
     INST_DIV,
     INST_JMP,
     INST_HALT,
+    INST_EQ,
+    INST_JNZ,
+    INST_JZ,
+    INST_DUP,
+    INST_PRINT_DEBUG,
 } Inst_Type;
 
 const char *inst_type_as_cstr(Inst_Type type)
@@ -66,6 +75,16 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "INST_JMP";
     case INST_HALT:
         return "INST_HALT";
+    case INST_EQ:
+        return "INST_EQ";
+    case INST_JNZ:
+        return "INST_JNZ";
+    case INST_JZ:
+        return "INST_JZ";
+    case INST_DUP:
+        return "INST_DUP";
+    case INST_PRINT_DEBUG:
+        return "INST_PRINT_DEBUG";
     default:
         assert(0 && "inst_type_as_cstr: unreachable");
     }
@@ -111,6 +130,32 @@ typedef struct {
         .type = INST_HALT                 \
     }
 
+#define /*Inst*/ MAKE_INST_EQ(/*void*/) \
+    {                                   \
+        .type = INST_EQ                 \
+    }
+
+#define /*Inst*/ MAKE_INST_JNZ(/*Word*/ addr) \
+    {                                         \
+        .type = INST_JNZ, .operand = (addr),  \
+    }
+
+#define /*Inst*/ MAKE_INST_JZ(/*Word*/ addr) \
+    {                                        \
+        .type = INST_JZ, .operand = (addr),  \
+    }
+
+#define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
+    {                                           \
+        .type = INST_DUP, .operand = (offset),  \
+    }
+
+#define /*Inst*/ MAKE_INST_PRINT_DEBUG(/*void*/) \
+    {                                            \
+        .type = INST_PRINT_DEBUG                 \
+    }
+
+
 /* Lisp Virtual Machine */
 typedef struct {
     /* Stack */
@@ -131,7 +176,9 @@ Trap lim_execute_inst(Lim *lim)
     }
 
     Inst inst = lim->program[lim->ip];
-    /* DEBUG */ printf("%s\n", inst_type_as_cstr(inst.type));
+#if DEBUG
+    printf("%s\n", inst_type_as_cstr(inst.type));
+#endif
     switch (inst.type) {
     case INST_PUSH:
         if (lim->stack_size >= LIM_STACK_CAPACITY) {
@@ -191,6 +238,72 @@ Trap lim_execute_inst(Lim *lim)
         lim->halt = 1;
         break;
 
+    case INST_EQ:
+        if (lim->stack_size < 2) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack[lim->stack_size - 2] =
+            lim->stack[lim->stack_size - 2] == lim->stack[lim->stack_size - 1];
+        lim->stack_size--;
+        lim->ip++;
+        break;
+
+    case INST_JNZ:
+        if (lim->stack_size < 1) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        // In this instruction, its address counld be illegal, since during next
+        // instruction execution this function would return trap/error
+        // TRAP_ILLEGAL_INST_ACCESS.
+        if (lim->stack[--lim->stack_size]) {
+            lim->ip = inst.operand;
+        } else {
+            lim->ip++;
+        }
+        break;
+
+    case INST_JZ:
+        if (lim->stack_size < 1) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        // In this instruction, its address counld be illegal, since during next
+        // instruction execution this function would return trap/error
+        // TRAP_ILLEGAL_INST_ACCESS.
+        if (!lim->stack[--lim->stack_size]) {
+            lim->ip = inst.operand;
+        } else {
+            lim->ip++;
+        }
+        break;
+
+    case INST_DUP:
+        // This instruction's operand is offset about the top element of stack.
+        // e.g. operand equal 0 means duplicate and push the current top element
+        // in the stack.
+        if (lim->stack_size >= LIM_STACK_CAPACITY) {
+            return TRAP_STACK_OVERFLOW;
+        }
+        if (inst.operand < 0) {
+            return TRAP_ILLEGAL_OPERAND;
+        }
+        if (lim->stack_size - inst.operand <= 0) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+
+        lim->stack[lim->stack_size] =
+            lim->stack[lim->stack_size - 1 - inst.operand];
+        lim->stack_size++;
+        lim->ip++;
+        break;
+
+    case INST_PRINT_DEBUG:
+        if (lim->stack_size < 1) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        printf("%ld\n", lim->stack[--lim->stack_size]);
+        lim->ip++;
+        break;
+
     default:
         return TRAP_ILLEGAL_INST;
     }
@@ -205,7 +318,7 @@ void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size)
     lim->program_size = program_size;
 }
 
-void lim_dump_stack(FILE *stream, Lim *lim)
+void lim_dump_stack(FILE *stream, const Lim *lim)
 {
     fprintf(stream, "Stack:\n");
     if (lim->stack_size > 0) {
@@ -219,11 +332,12 @@ void lim_dump_stack(FILE *stream, Lim *lim)
 
 Lim lim = {0};
 
+// calculate the Fibonacci numbers
 Inst program[] = {
-    MAKE_INST_PUSH(69), MAKE_INST_PUSH(22), MAKE_INST_PUSH(43),
-    MAKE_INST_PLUS(),   MAKE_INST_MINUS(),  MAKE_INST_PUSH(21),
-    MAKE_INST_JMP(9),   MAKE_INST_PUSH(3),  MAKE_INST_DIV(),
-    MAKE_INST_MULT(),   MAKE_INST_HALT(),
+    MAKE_INST_PUSH(0),       MAKE_INST_PUSH(1), MAKE_INST_DUP(1),
+    MAKE_INST_DUP(1),        MAKE_INST_PLUS(),  MAKE_INST_DUP(0),
+    MAKE_INST_PUSH(2584),    MAKE_INST_EQ(),    MAKE_INST_JZ(2),
+    MAKE_INST_PRINT_DEBUG(), MAKE_INST_HALT(),
 };
 
 int main()
@@ -232,7 +346,9 @@ int main()
     lim_dump_stack(stdout, &lim);
     while (!lim.halt) {
         Trap trap = lim_execute_inst(&lim);
-        /* DEBUG */ lim_dump_stack(stdout, &lim);
+#if DEBUG
+        lim_dump_stack(stdout, &lim);
+#endif
         if (trap != TRAP_OK) {
             fprintf(stderr, "Trap activated: %s\n", trap_as_cstr(trap));
             lim_dump_stack(stderr, &lim);
