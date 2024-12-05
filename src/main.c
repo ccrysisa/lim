@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -312,10 +313,75 @@ Trap lim_execute_inst(Lim *lim)
 
 void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size)
 {
-    assert(program_size > 0 && program_size <= LIM_PROGRAM_CAPACITY);
+    assert(program_size <= LIM_PROGRAM_CAPACITY);
 
     memcpy(lim->program, program, sizeof(program[0]) * program_size);
     lim->program_size = program_size;
+}
+
+void lim_load_program_from_file(Lim *lim, const char *file_path)
+{
+    FILE *f = fopen(file_path, "rb");
+    if (f == NULL) {
+        fprintf(stderr, "ERROR: Counld not open file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    if (fseek(f, 0, SEEK_END) < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    long m = ftell(f);
+    if (m < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    assert(m % sizeof(lim->program[0]) == 0);
+    assert((size_t) m <= LIM_PROGRAM_CAPACITY * sizeof(lim->program[0]));
+
+    if (fseek(f, 0, SEEK_SET) < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    lim->program_size = fread(lim->program, sizeof(lim->program[0]),
+                              m / sizeof(lim->program[0]), f);
+
+    if (ferror(f)) {
+        fprintf(stderr, "ERROR: Counld not write file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    fclose(f);
+}
+
+void lim_save_program_to_file(Inst *program,
+                              size_t program_size,
+                              const char *file_path)
+{
+    FILE *f = fopen(file_path, "wb");
+    if (f == NULL) {
+        fprintf(stderr, "ERROR: Counld not open file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    fwrite(program, sizeof(program[0]), program_size, f);
+
+    if (ferror(f)) {
+        fprintf(stderr, "ERROR: Counld not write file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    fclose(f);
 }
 
 void lim_dump_stack(FILE *stream, const Lim *lim)
@@ -342,7 +408,10 @@ Inst program[] = {
 
 int main()
 {
-    lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
+    // lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
+    // lim_save_program_to_file(lim.program, lim.program_size,
+    // "./tests/fib.lim");
+    lim_load_program_from_file(&lim, "./tests/fib.lim");
     lim_dump_stack(stdout, &lim);
     while (!lim.halt) {
         Trap trap = lim_execute_inst(&lim);
