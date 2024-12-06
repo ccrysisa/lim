@@ -45,6 +45,7 @@ const char *trap_as_cstr(Trap trap)
 typedef int64_t Word;
 
 typedef enum {
+    INST_NOP = 0,
     INST_PUSH,
     INST_PLUS,
     INST_MINUS,
@@ -62,6 +63,8 @@ typedef enum {
 const char *inst_type_as_cstr(Inst_Type type)
 {
     switch (type) {
+    case INST_NOP:
+        return "INST_NOP";
     case INST_PUSH:
         return "INST_PUSH";
     case INST_PLUS:
@@ -95,6 +98,11 @@ typedef struct {
     Inst_Type type;
     Word operand;
 } Inst;
+
+#define /*Inst*/ MAKE_INST_NOP(/*void*/) \
+    {                                    \
+        .type = INST_NOP                 \
+    }
 
 #define /*Inst*/ MAKE_INST_PUSH(/*Word*/ value) \
     {                                           \
@@ -156,7 +164,6 @@ typedef struct {
         .type = INST_PRINT_DEBUG                 \
     }
 
-
 /* Lisp Virtual Machine */
 typedef struct {
     /* Stack */
@@ -170,6 +177,44 @@ typedef struct {
     int halt;
 } Lim;
 
+typedef struct {
+    size_t count;
+    char *data;
+} String_View;
+
+String_View cstr_as_sv(char *str)
+{
+    return (String_View){
+        .count = strlen(str),
+        .data = str,
+    };
+}
+
+String_View sv_trim_left(String_View sv)
+{
+    assert(0 && "ERROR: sv_trim_left is not implemented");
+}
+
+String_View sv_trim_right(String_View sv)
+{
+    assert(0 && "ERROR: sv_trim_right is not implemented");
+}
+
+String_View sv_chop_delim(String_View sv, char c)
+{
+    assert(0 && "ERROR: sv_chop_delim is not implemented");
+}
+
+int sv_equal(String_View a, String_View b)
+{
+    assert(0 && "ERROR: sv_equal is not implemented");
+}
+
+int sv_to_int(String_View sv)
+{
+    assert(0 && "ERROR: sv_equal is not implemented");
+}
+
 Trap lim_execute_inst(Lim *lim)
 {
     if (lim->ip < 0 || lim->ip >= lim->program_size) {
@@ -181,6 +226,10 @@ Trap lim_execute_inst(Lim *lim)
     printf("%s\n", inst_type_as_cstr(inst.type));
 #endif
     switch (inst.type) {
+    case INST_NOP:
+        lim->ip++;
+        break;
+
     case INST_PUSH:
         if (lim->stack_size >= LIM_STACK_CAPACITY) {
             return TRAP_STACK_OVERFLOW;
@@ -384,6 +433,49 @@ void lim_save_program_to_file(Inst *program,
     fclose(f);
 }
 
+Inst lim_translate_line(String_View line)
+{
+    line = sv_trim_left(line);
+    String_View inst_name = sv_chop_delim(line, ' ');
+
+    if (sv_equal(inst_name, cstr_as_sv("push"))) {
+        line = sv_trim_left(line);
+        int operand = sv_to_int(line);
+        return (Inst) MAKE_INST_PUSH(operand);
+    } else {
+        fprintf(stderr, "ERROR: `%.*s` is not a number\n",
+                (int) inst_name.count, inst_name.data);
+    }
+
+    return (Inst) MAKE_INST_NOP();
+}
+
+size_t lim_translate_source(char *source,
+                            size_t source_size,
+                            Inst *program,
+                            size_t program_size)
+{
+    while (source_size > 0) {
+        char *end = memchr(source, '\n', source_size);
+        size_t n = end != NULL ? (size_t) (end - source) : source_size;
+
+        printf("#%.*s#\n", (int) n, source);
+
+        source = end;
+        source_size -= n;
+
+        if (source != NULL) {
+            source += 1;
+            source_size -= 1;
+        }
+    }
+
+    (void) program;
+    (void) program_size;
+
+    return 0;
+}
+
 void lim_dump_stack(FILE *stream, const Lim *lim)
 {
     fprintf(stream, "Stack:\n");
@@ -406,7 +498,25 @@ Inst program[] = {
     MAKE_INST_PRINT_DEBUG(), MAKE_INST_HALT(),
 };
 
+char *source_code =
+    "push 0\n"
+    "push 1\n"
+    "dup 1\n"
+    "dup 1\n"
+    "plus\n"
+    "dup 0\n"
+    "push 2854\n"
+    "eq\n"
+    "jz 2\n"
+    "halt\n";
+
 int main()
+{
+    lim_translate_source(source_code, strlen(source_code), NULL, 0);
+    return 0;
+}
+
+int main2()
 {
     // lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
     // lim_save_program_to_file(lim.program, lim.program_size,
