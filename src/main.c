@@ -475,6 +475,57 @@ void lim_save_program_to_file(Inst *program,
     fclose(f);
 }
 
+String_View slurp_file(const char *file_path)
+{
+    FILE *f = fopen(file_path, "rb");
+    if (f == NULL) {
+        fprintf(stderr, "ERROR: Counld not open file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    if (fseek(f, 0, SEEK_END) < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    long m = ftell(f);
+    if (m < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    char *buffer = malloc(m);
+    if (buffer == NULL) {
+        fprintf(stderr, "ERROR: Counld not allocate memory for file: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+    if (fseek(f, 0, SEEK_SET) < 0) {
+        fprintf(stderr, "ERROR: Counld not read file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    size_t n = fread(buffer, 1, m, f);
+
+    if (ferror(f)) {
+        fprintf(stderr, "ERROR: Counld not write file `%s`: %s\n", file_path,
+                strerror(errno));
+        exit(1);
+    }
+
+    fclose(f);
+
+    return (String_View){
+        .count = n,
+        .data = buffer,
+    };
+}
+
 Inst lim_translate_line(String_View line)
 {
     line = sv_trim_left(line);
@@ -558,36 +609,31 @@ void lim_dump_stack(FILE *stream, const Lim *lim)
 
 Lim lim = {0};
 
-// calculate the Fibonacci numbers
-Inst program[] = {
-    MAKE_INST_PUSH(0),       MAKE_INST_PUSH(1), MAKE_INST_DUP(1),
-    MAKE_INST_DUP(1),        MAKE_INST_PLUS(),  MAKE_INST_DUP(0),
-    MAKE_INST_PUSH(2584),    MAKE_INST_EQ(),    MAKE_INST_JZ(2),
-    MAKE_INST_PRINT_DEBUG(), MAKE_INST_HALT(),
-};
+// Assembly source code
+int main(int argc, char *argv[])
+{
+    if (argc < 3) {
+        fprintf(stderr, "Usage: ./lim <input.lasm> <output.lim>\n");
+        fprintf(stderr, "Error: expect input and output paths\n");
+        exit(1);
+    }
 
-char *source_code =
-    "push 0\n"
-    "push 1\n"
-    "dup 1\n"
-    "dup 1\n"
-    "plus\n"
-    "dup 0\n"
-    "push 2584\n"
-    "eq\n"
-    "\n"
-    "jz 2\n"
-    "halt\n"
-    "\n";
+    const char *input_file_path = argv[1];
+    const char *output_file_path = argv[2];
 
-int main()
+    String_View source = slurp_file(input_file_path);
+    lim.program_size =
+        lim_translate_source(source, lim.program, LIM_PROGRAM_CAPACITY);
+    lim_save_program_to_file(lim.program, lim.program_size, output_file_path);
+}
+
+// Exexcute program
+int main2()
 {
     // lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
     // lim_save_program_to_file(lim.program, lim.program_size,
     // "./tests/fib.lim");
-    // lim_load_program_from_file(&lim, "./tests/fib.lim");
-    lim.program_size = lim_translate_source(cstr_as_sv(source_code),
-                                            lim.program, LIM_PROGRAM_CAPACITY);
+    // lim_load_program_from_file(&lim, "./tests/fib2.lim");
     lim_dump_stack(stdout, &lim);
     while (!lim.halt) {
         Trap trap = lim_execute_inst(&lim);

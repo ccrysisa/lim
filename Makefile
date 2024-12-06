@@ -7,10 +7,7 @@ LIBS=
 $(BUILD)/lim: $(SRC)/main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
-run: $(BUILD)/lim
-	./$<
-
 clean:
 	@rm -rf build/*
 
-.PHONY: run clean
+.PHONY: clean
