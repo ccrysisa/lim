@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -179,7 +180,7 @@ typedef struct {
 
 typedef struct {
     size_t count;
-    char *data;
+    const char *data;
 } String_View;
 
 String_View cstr_as_sv(char *str)
@@ -192,27 +193,68 @@ String_View cstr_as_sv(char *str)
 
 String_View sv_trim_left(String_View sv)
 {
-    assert(0 && "ERROR: sv_trim_left is not implemented");
+    size_t i = 0;
+    while (i < sv.count && isspace(sv.data[i])) {
+        i++;
+    }
+
+    return (String_View){
+        .count = sv.count - i,
+        .data = sv.data + i,
+    };
 }
 
 String_View sv_trim_right(String_View sv)
 {
-    assert(0 && "ERROR: sv_trim_right is not implemented");
+    size_t i = 0;
+    while (i < sv.count && isspace(sv.data[sv.count - 1 - i])) {
+        i++;
+    }
+
+    return (String_View){
+        .count = sv.count - i,
+        .data = sv.data,
+    };
 }
 
-String_View sv_chop_delim(String_View sv, char c)
+String_View sv_trim(String_View sv)
 {
-    assert(0 && "ERROR: sv_chop_delim is not implemented");
+    return sv_trim_right(sv_trim_left(sv));
+}
+
+String_View sv_chop_delim(String_View *sv, char delim)
+{
+    size_t i = 0;
+    while (i < sv->count && sv->data[i] != delim) {
+        i++;
+    }
+
+    const char *data = sv->data;
+    int flag = i < sv->count;
+    sv->count -= flag ? i + 1 : i;
+    sv->data += flag ? i + 1 : i;
+
+    return (String_View){
+        .count = i,
+        .data = data,
+    };
 }
 
 int sv_equal(String_View a, String_View b)
 {
-    assert(0 && "ERROR: sv_equal is not implemented");
+    return a.count == b.count && !strncmp(a.data, b.data, a.count);
 }
 
-int sv_to_int(String_View sv)
+Word sv_to_word(String_View sv)
 {
-    assert(0 && "ERROR: sv_equal is not implemented");
+    // can just using atoi/atol/atoll to convert, but for compatibility we
+    // implement this function by hand.
+    Word result = 0;
+    for (size_t i = 0; i < sv.count && isdigit(sv.data[i]); i++) {
+        result = result * 10 + sv.data[i] - '0';
+    }
+    printf("%ld\n", result);
+    return result;
 }
 
 Trap lim_execute_inst(Lim *lim)
@@ -436,44 +478,70 @@ void lim_save_program_to_file(Inst *program,
 Inst lim_translate_line(String_View line)
 {
     line = sv_trim_left(line);
-    String_View inst_name = sv_chop_delim(line, ' ');
+    String_View inst_name = sv_chop_delim(&line, ' ');
 
-    if (sv_equal(inst_name, cstr_as_sv("push"))) {
+    if (sv_equal(inst_name, cstr_as_sv("nop"))) {
+        return (Inst) MAKE_INST_NOP();
+    } else if (sv_equal(inst_name, cstr_as_sv("push"))) {
         line = sv_trim_left(line);
-        int operand = sv_to_int(line);
+        Word operand = sv_to_word(line);
         return (Inst) MAKE_INST_PUSH(operand);
+    } else if (sv_equal(inst_name, cstr_as_sv("plus"))) {
+        return (Inst) MAKE_INST_PLUS();
+    } else if (sv_equal(inst_name, cstr_as_sv("minus"))) {
+        return (Inst) MAKE_INST_MINUS();
+    } else if (sv_equal(inst_name, cstr_as_sv("mult"))) {
+        return (Inst) MAKE_INST_MULT();
+    } else if (sv_equal(inst_name, cstr_as_sv("div"))) {
+        return (Inst) MAKE_INST_DIV();
+    } else if (sv_equal(inst_name, cstr_as_sv("jmp"))) {
+        line = sv_trim_left(line);
+        Word operand = sv_to_word(line);
+        return (Inst) MAKE_INST_JMP(operand);
+    } else if (sv_equal(inst_name, cstr_as_sv("halt"))) {
+        return (Inst) MAKE_INST_HALT();
+    } else if (sv_equal(inst_name, cstr_as_sv("eq"))) {
+        return (Inst) MAKE_INST_EQ();
+    } else if (sv_equal(inst_name, cstr_as_sv("jnz"))) {
+        line = sv_trim_left(line);
+        Word operand = sv_to_word(line);
+        return (Inst) MAKE_INST_JNZ(operand);
+    } else if (sv_equal(inst_name, cstr_as_sv("jz"))) {
+        line = sv_trim_left(line);
+        Word operand = sv_to_word(line);
+        return (Inst) MAKE_INST_JZ(operand);
+    } else if (sv_equal(inst_name, cstr_as_sv("dup"))) {
+        line = sv_trim_left(line);
+        Word operand = sv_to_word(line);
+        return (Inst) MAKE_INST_DUP(operand);
+    } else if (sv_equal(inst_name, cstr_as_sv("print_debug"))) {
+        return (Inst) MAKE_INST_PRINT_DEBUG();
     } else {
-        fprintf(stderr, "ERROR: `%.*s` is not a number\n",
+        fprintf(stderr, "ERROR: unknown instruction `%.*s`\n",
                 (int) inst_name.count, inst_name.data);
     }
 
     return (Inst) MAKE_INST_NOP();
 }
 
-size_t lim_translate_source(char *source,
-                            size_t source_size,
+size_t lim_translate_source(String_View source,
                             Inst *program,
-                            size_t program_size)
+                            size_t program_capacity)
 {
-    while (source_size > 0) {
-        char *end = memchr(source, '\n', source_size);
-        size_t n = end != NULL ? (size_t) (end - source) : source_size;
+    size_t program_size = 0;
 
-        printf("#%.*s#\n", (int) n, source);
-
-        source = end;
-        source_size -= n;
-
-        if (source != NULL) {
-            source += 1;
-            source_size -= 1;
-        }
+    while (source.count > 0) {
+        assert(program_size < program_capacity);
+        String_View line = sv_chop_delim(&source, '\n');
+#if DEBUG
+        printf("#%.*s#\n", (int) line.count, line.data);
+#endif
+        if (line.count == 0)  // skip blank line
+            continue;
+        program[program_size++] = lim_translate_line(line);
     }
 
-    (void) program;
-    (void) program_size;
-
-    return 0;
+    return program_size;
 }
 
 void lim_dump_stack(FILE *stream, const Lim *lim)
@@ -505,23 +573,21 @@ char *source_code =
     "dup 1\n"
     "plus\n"
     "dup 0\n"
-    "push 2854\n"
+    "push 2584\n"
     "eq\n"
+    "\n"
     "jz 2\n"
-    "halt\n";
+    "halt\n"
+    "\n";
 
 int main()
-{
-    lim_translate_source(source_code, strlen(source_code), NULL, 0);
-    return 0;
-}
-
-int main2()
 {
     // lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
     // lim_save_program_to_file(lim.program, lim.program_size,
     // "./tests/fib.lim");
-    lim_load_program_from_file(&lim, "./tests/fib.lim");
+    // lim_load_program_from_file(&lim, "./tests/fib.lim");
+    lim.program_size = lim_translate_source(cstr_as_sv(source_code),
+                                            lim.program, LIM_PROGRAM_CAPACITY);
     lim_dump_stack(stdout, &lim);
     while (!lim.halt) {
         Trap trap = lim_execute_inst(&lim);

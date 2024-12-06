@@ -4,7 +4,7 @@ dup 1
 dup 1
 plus
 dup 0
-push 2854
+push 2584
 eq
 jz 2
 halt
