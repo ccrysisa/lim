@@ -1,25 +1,4 @@
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#define DEBUG 1
-#define ARRAY_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
-#define LIM_STACK_CAPACITY 1024
-#define LIM_PROGRAM_CAPACITY 1024
-
-typedef enum {
-    TRAP_OK = 0,
-    TRAP_STACK_OVERFLOW,
-    TRAP_STACK_UNDERFLOW,
-    TRAP_DIV_BY_ZERO,
-    TRAP_ILLEGAL_INST,
-    TRAP_ILLEGAL_INST_ACCESS,
-    TRAP_ILLEGAL_OPERAND,
-} Trap;
+#include "lim.h"
 
 const char *trap_as_cstr(Trap trap)
 {
@@ -42,24 +21,6 @@ const char *trap_as_cstr(Trap trap)
         assert(0 && "trap_as_cstr: unreachable");
     }
 }
-
-typedef int64_t Word;
-
-typedef enum {
-    INST_NOP = 0,
-    INST_PUSH,
-    INST_PLUS,
-    INST_MINUS,
-    INST_MULT,
-    INST_DIV,
-    INST_JMP,
-    INST_HALT,
-    INST_EQ,
-    INST_JNZ,
-    INST_JZ,
-    INST_DUP,
-    INST_PRINT_DEBUG,
-} Inst_Type;
 
 const char *inst_type_as_cstr(Inst_Type type)
 {
@@ -94,94 +55,6 @@ const char *inst_type_as_cstr(Inst_Type type)
         assert(0 && "inst_type_as_cstr: unreachable");
     }
 }
-
-typedef struct {
-    Inst_Type type;
-    Word operand;
-} Inst;
-
-#define /*Inst*/ MAKE_INST_NOP(/*void*/) \
-    {                                    \
-        .type = INST_NOP                 \
-    }
-
-#define /*Inst*/ MAKE_INST_PUSH(/*Word*/ value) \
-    {                                           \
-        .type = INST_PUSH, .operand = (value),  \
-    }
-
-#define /*Inst*/ MAKE_INST_PLUS(/*void*/) \
-    {                                     \
-        .type = INST_PLUS                 \
-    }
-
-#define /*Inst*/ MAKE_INST_MINUS(/*void*/) \
-    {                                      \
-        .type = INST_MINUS                 \
-    }
-
-#define /*Inst*/ MAKE_INST_MULT(/*void*/) \
-    {                                     \
-        .type = INST_MULT                 \
-    }
-
-#define /*Inst*/ MAKE_INST_DIV(/*void*/) \
-    {                                    \
-        .type = INST_DIV                 \
-    }
-
-#define /*Inst*/ MAKE_INST_JMP(/*Word*/ addr) \
-    {                                         \
-        .type = INST_JMP, .operand = (addr),  \
-    }
-
-#define /*Inst*/ MAKE_INST_HALT(/*void*/) \
-    {                                     \
-        .type = INST_HALT                 \
-    }
-
-#define /*Inst*/ MAKE_INST_EQ(/*void*/) \
-    {                                   \
-        .type = INST_EQ                 \
-    }
-
-#define /*Inst*/ MAKE_INST_JNZ(/*Word*/ addr) \
-    {                                         \
-        .type = INST_JNZ, .operand = (addr),  \
-    }
-
-#define /*Inst*/ MAKE_INST_JZ(/*Word*/ addr) \
-    {                                        \
-        .type = INST_JZ, .operand = (addr),  \
-    }
-
-#define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
-    {                                           \
-        .type = INST_DUP, .operand = (offset),  \
-    }
-
-#define /*Inst*/ MAKE_INST_PRINT_DEBUG(/*void*/) \
-    {                                            \
-        .type = INST_PRINT_DEBUG                 \
-    }
-
-/* Lisp Virtual Machine */
-typedef struct {
-    /* Stack */
-    Word stack[LIM_STACK_CAPACITY];
-    Word stack_size;
-    /* Code */
-    Inst program[LIM_PROGRAM_CAPACITY];
-    Word program_size;
-    /* State */
-    Word ip;
-    int halt;
-} Lim;
-
-typedef struct {
-    size_t count;
-    const char *data;
-} String_View;
 
 String_View cstr_as_sv(char *str)
 {
@@ -253,7 +126,6 @@ Word sv_to_word(String_View sv)
     for (size_t i = 0; i < sv.count && isdigit(sv.data[i]); i++) {
         result = result * 10 + sv.data[i] - '0';
     }
-    printf("%ld\n", result);
     return result;
 }
 
@@ -453,9 +325,7 @@ void lim_load_program_from_file(Lim *lim, const char *file_path)
     fclose(f);
 }
 
-void lim_save_program_to_file(Inst *program,
-                              size_t program_size,
-                              const char *file_path)
+void lim_save_program_to_file(Lim *lim, const char *file_path)
 {
     FILE *f = fopen(file_path, "wb");
     if (f == NULL) {
@@ -464,7 +334,7 @@ void lim_save_program_to_file(Inst *program,
         exit(1);
     }
 
-    fwrite(program, sizeof(program[0]), program_size, f);
+    fwrite(lim->program, sizeof(lim->program[0]), lim->program_size, f);
 
     if (ferror(f)) {
         fprintf(stderr, "ERROR: Counld not write file `%s`: %s\n", file_path,
@@ -608,44 +478,3 @@ void lim_dump_stack(FILE *stream, const Lim *lim)
 }
 
 Lim lim = {0};
-
-// Assembly source code
-int main(int argc, char *argv[])
-{
-    if (argc < 3) {
-        fprintf(stderr, "Usage: ./lim <input.lasm> <output.lim>\n");
-        fprintf(stderr, "Error: expect input and output paths\n");
-        exit(1);
-    }
-
-    const char *input_file_path = argv[1];
-    const char *output_file_path = argv[2];
-
-    String_View source = slurp_file(input_file_path);
-    lim.program_size =
-        lim_translate_source(source, lim.program, LIM_PROGRAM_CAPACITY);
-    lim_save_program_to_file(lim.program, lim.program_size, output_file_path);
-}
-
-// Exexcute program
-int main2()
-{
-    // lim_load_program_from_memory(&lim, program, ARRAY_SIZE(program));
-    // lim_save_program_to_file(lim.program, lim.program_size,
-    // "./tests/fib.lim");
-    // lim_load_program_from_file(&lim, "./tests/fib2.lim");
-    lim_dump_stack(stdout, &lim);
-    while (!lim.halt) {
-        Trap trap = lim_execute_inst(&lim);
-#if DEBUG
-        lim_dump_stack(stdout, &lim);
-#endif
-        if (trap != TRAP_OK) {
-            fprintf(stderr, "Trap activated: %s\n", trap_as_cstr(trap));
-            lim_dump_stack(stderr, &lim);
-            exit(1);
-        }
-    }
-    lim_dump_stack(stdout, &lim);
-    return 0;
-}
