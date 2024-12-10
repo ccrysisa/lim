@@ -22,10 +22,13 @@ $ make examples
 $ make clean
 
 # Assemble source code to program for virtual machine
-$ ./lasm <input.lasm> <output.lim>
+$ ./lasm -i <input.lasm> -o <output.lim>
 
 # Emulate program by virtual machine
-$ ./lime <input.lim>
+$ ./lime -i <input.lim>
+
+# Disassemble program
+$ ./delasm -i <input.lim>
 
 # Generate compile_commands.json (make sure you have intsalled bear)
 $ bear -- make
@@ -35,7 +38,7 @@ $ bear -- make
 
 ### lasm
 
-Assembly language for the Virtual Machine. FOr exampes see [./tests](./tests/) folder.
+Assembly language for the Virtual Machine. For exampes see [./tests](./tests/) folder.
 
 ### lime
 

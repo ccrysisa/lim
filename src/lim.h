@@ -144,7 +144,7 @@ typedef struct {
     int halt;
 } Lim;
 
-Trap lim_execute_inst(Lim *lim);
+Trap lim_execute_program(Lim *lim);
 void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size);
 void lim_load_program_from_file(Lim *lim, const char *file_path);
 void lim_save_program_to_file(Lim *lim, const char *file_path);
@@ -154,5 +154,7 @@ size_t lim_translate_source(String_View source,
                             size_t program_capacity);
 void lim_dump_stack(FILE *stream, const Lim *lim);
 extern Lim lim;
+
+const char *shift_args(int *argc, char ***argv);
 
 #endif

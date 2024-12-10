@@ -2,20 +2,22 @@ SRC:=src
 BUILD:=build
 TEST:=tests
 
+TARGET:= ./lasm ./lime ./delasm
+
 CFLAGS=-Wall -Wextra -Wswitch-enum -std=c11 -pedantic
 LIBS= 
 
 all: $(BUILD)/lasm $(BUILD)/lime $(BUILD)/delasm
 
-$(BUILD)/lasm: $(SRC)/lim.h $(SRC)/lasm.c $(SRC)/lim.c
+$(BUILD)/lasm: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/lasm.c
 	$(CC) $(CFLAGS) $(filter-out $<, $^) -o $@ $(LIBS)
 	@ln -s $@
 
-$(BUILD)/lime: $(SRC)/lim.h $(SRC)/lime.c $(SRC)/lim.c
+$(BUILD)/lime: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/lime.c
 	$(CC) $(CFLAGS) $(filter-out $<, $^) -o $@ $(LIBS)
 	@ln -s $@
 
-$(BUILD)/delasm: $(SRC)/lim.h $(SRC)/delasm.c $(SRC)/lim.c
+$(BUILD)/delasm: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/delasm.c
 	$(CC) $(CFLAGS) $(filter-out $<, $^) -o $@ $(LIBS)
 	@ln -s $@
 
@@ -25,6 +27,6 @@ $(TEST)/%.lim: $(TEST)/%.lasm
 	./lasm $< $@
 
 clean:
-	@rm -rf ./lasm ./lime ./delasm $(BUILD)/* $(TEST)/*.lim
+	@rm -rf $(BUILD)/* $(TEST)/*.lim $(TARGET)
 
 .PHONY: all clean examples

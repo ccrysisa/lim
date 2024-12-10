@@ -274,6 +274,18 @@ Trap lim_execute_inst(Lim *lim)
     return TRAP_OK;
 }
 
+Trap lim_execute_program(Lim *lim)
+{
+    while (!lim->halt) {
+        Trap trap = lim_execute_inst(lim);
+        if (trap != TRAP_OK) {
+            return trap;
+        }
+    }
+
+    return TRAP_OK;
+}
+
 void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size)
 {
     assert(program_size <= LIM_PROGRAM_CAPACITY);
@@ -454,9 +466,6 @@ size_t lim_translate_source(String_View source,
     while (source.count > 0) {
         assert(program_size < program_capacity);
         String_View line = sv_chop_delim(&source, '\n');
-#if DEBUG
-        printf("#%.*s#\n", (int) line.count, line.data);
-#endif
         if (line.count == 0)  // skip blank line
             continue;
         program[program_size++] = lim_translate_line(line);
@@ -478,3 +487,12 @@ void lim_dump_stack(FILE *stream, const Lim *lim)
 }
 
 Lim lim = {0};
+
+const char *shift_args(int *argc, char ***argv)
+{
+    assert(*argc > 0);
+    char *result = **argv;
+    *argv += 1;
+    *argc -= 1;
+    return result;
+}
