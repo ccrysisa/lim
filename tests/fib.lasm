@@ -1,10 +1,14 @@
-push 0
-push 1
-dup 1
-dup 1
-plus
-dup 0
-push 2584
-eq
-jz 2
-halt
+# First two fibonacci numbers
+  push 0 # first
+  push 1 # second
+# The loop
+  dup 1
+  dup 1
+  plus
+# Compare target
+  dup 0
+  push 2584
+  eq
+  jz 2  # jump by loop
+
+  halt

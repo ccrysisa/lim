@@ -412,13 +412,12 @@ Inst lim_translate_line(String_View line)
 {
     line = sv_trim_left(line);
     String_View inst_name = sv_chop_delim(&line, ' ');
+    String_View operand = sv_trim(sv_chop_delim(&line, '#'));
 
     if (sv_equal(inst_name, cstr_as_sv("nop"))) {
         return (Inst) MAKE_INST_NOP();
     } else if (sv_equal(inst_name, cstr_as_sv("push"))) {
-        line = sv_trim_left(line);
-        Word operand = sv_to_word(line);
-        return (Inst) MAKE_INST_PUSH(operand);
+        return (Inst) MAKE_INST_PUSH(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("plus"))) {
         return (Inst) MAKE_INST_PLUS();
     } else if (sv_equal(inst_name, cstr_as_sv("minus"))) {
@@ -428,25 +427,17 @@ Inst lim_translate_line(String_View line)
     } else if (sv_equal(inst_name, cstr_as_sv("div"))) {
         return (Inst) MAKE_INST_DIV();
     } else if (sv_equal(inst_name, cstr_as_sv("jmp"))) {
-        line = sv_trim_left(line);
-        Word operand = sv_to_word(line);
-        return (Inst) MAKE_INST_JMP(operand);
+        return (Inst) MAKE_INST_JMP(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("halt"))) {
         return (Inst) MAKE_INST_HALT();
     } else if (sv_equal(inst_name, cstr_as_sv("eq"))) {
         return (Inst) MAKE_INST_EQ();
     } else if (sv_equal(inst_name, cstr_as_sv("jnz"))) {
-        line = sv_trim_left(line);
-        Word operand = sv_to_word(line);
-        return (Inst) MAKE_INST_JNZ(operand);
+        return (Inst) MAKE_INST_JNZ(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("jz"))) {
-        line = sv_trim_left(line);
-        Word operand = sv_to_word(line);
-        return (Inst) MAKE_INST_JZ(operand);
+        return (Inst) MAKE_INST_JZ(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("dup"))) {
-        line = sv_trim_left(line);
-        Word operand = sv_to_word(line);
-        return (Inst) MAKE_INST_DUP(operand);
+        return (Inst) MAKE_INST_DUP(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("print_debug"))) {
         return (Inst) MAKE_INST_PRINT_DEBUG();
     } else {
@@ -466,7 +457,8 @@ size_t lim_translate_source(String_View source,
     while (source.count > 0) {
         assert(program_size < program_capacity);
         String_View line = sv_chop_delim(&source, '\n');
-        if (line.count == 0)  // skip blank line
+        // skip blank lines and comments
+        if (line.count == 0 || *line.data == '#')
             continue;
         program[program_size++] = lim_translate_line(line);
     }
