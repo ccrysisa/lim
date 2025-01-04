@@ -1,3 +1,4 @@
+  jmp 1
 # First two fibonacci numbers
   push 0 # first
   push 1 # second

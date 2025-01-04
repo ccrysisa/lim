@@ -1,6 +1,4 @@
 #include "lim.h"
-#include <assert.h>
-#include <stdio.h>
 
 const char *trap_as_cstr(Trap trap)
 {
@@ -450,6 +448,8 @@ Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
         return (Inst) MAKE_INST_NOP();
     } else if (sv_equal(inst_name, cstr_as_sv("push"))) {
         return (Inst) MAKE_INST_PUSH(sv_to_word(operand));
+    } else if (sv_equal(inst_name, cstr_as_sv("dup"))) {
+        return (Inst) MAKE_INST_DUP(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("plus"))) {
         return (Inst) MAKE_INST_PLUS();
     } else if (sv_equal(inst_name, cstr_as_sv("minus"))) {
@@ -458,21 +458,31 @@ Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
         return (Inst) MAKE_INST_MULT();
     } else if (sv_equal(inst_name, cstr_as_sv("div"))) {
         return (Inst) MAKE_INST_DIV();
-    } else if (sv_equal(inst_name, cstr_as_sv("jmp"))) {
-        label_table_push_unresolved_jmp(lt, addr, operand);
-        return (Inst){.type = INST_JMP};
     } else if (sv_equal(inst_name, cstr_as_sv("halt"))) {
         return (Inst) MAKE_INST_HALT();
     } else if (sv_equal(inst_name, cstr_as_sv("eq"))) {
         return (Inst) MAKE_INST_EQ();
+    } else if (sv_equal(inst_name, cstr_as_sv("jmp"))) {
+        if (operand.count > 0 && isdigit(*operand.data)) {
+            return (Inst) MAKE_INST_JMP(sv_to_word(operand));
+        } else {
+            label_table_push_unresolved_jmp(lt, addr, operand);
+            return (Inst){.type = INST_JMP};
+        }
     } else if (sv_equal(inst_name, cstr_as_sv("jnz"))) {
-        label_table_push_unresolved_jmp(lt, addr, operand);
-        return (Inst){.type = INST_JNZ};
+        if (operand.count > 0 && isdigit(*operand.data)) {
+            return (Inst) MAKE_INST_JNZ(sv_to_word(operand));
+        } else {
+            label_table_push_unresolved_jmp(lt, addr, operand);
+            return (Inst){.type = INST_JNZ};
+        }
     } else if (sv_equal(inst_name, cstr_as_sv("jz"))) {
-        label_table_push_unresolved_jmp(lt, addr, operand);
-        return (Inst){.type = INST_JZ};
-    } else if (sv_equal(inst_name, cstr_as_sv("dup"))) {
-        return (Inst) MAKE_INST_DUP(sv_to_word(operand));
+        if (operand.count > 0 && isdigit(*operand.data)) {
+            return (Inst) MAKE_INST_JZ(sv_to_word(operand));
+        } else {
+            label_table_push_unresolved_jmp(lt, addr, operand);
+            return (Inst){.type = INST_JZ};
+        }
     } else if (sv_equal(inst_name, cstr_as_sv("print_debug"))) {
         return (Inst) MAKE_INST_PRINT_DEBUG();
     } else {
@@ -505,6 +515,21 @@ void lim_translate_source(String_View source, Lim *lim)
         Inst inst =
             lim_translate_line(&lim->label_table, lim->program_size, line);
         lim->program[lim->program_size++] = inst;
+    }
+
+    printf("Labels: \n");
+    for (size_t i = 0; i < lim->label_table.labels_size; i++) {
+        printf("%ld -> %.*s\n", lim->label_table.labels[i].addr,
+               (int) lim->label_table.labels[i].name.count,
+               lim->label_table.labels[i].name.data);
+    }
+
+    printf("Unresolved Jmps: \n");
+    for (size_t i = 0; i < lim->label_table.unresolved_jmps_size; i++) {
+        printf("%.*s -> %ld\n",
+               (int) lim->label_table.unresolved_jmps[i].label.count,
+               lim->label_table.unresolved_jmps[i].label.data,
+               lim->label_table.unresolved_jmps[i].addr);
     }
 
     // Second pass
