@@ -41,8 +41,7 @@ int main(int argc, char *argv[])
     }
 
     String_View source = slurp_file(input_file_path);
-    lim.program_size =
-        lim_translate_source(source, lim.program, LIM_PROGRAM_CAPACITY);
+    lim_translate_source(source, &lim);
     lim_save_program_to_file(&lim, output_file_path);
 
     return 0;

@@ -13,6 +13,8 @@
 #define ARRAY_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
 #define LIM_STACK_CAPACITY 1024
 #define LIM_PROGRAM_CAPACITY 1024
+#define LABEL_CAPACITY 1024
+#define UNRESOLVED_JMPS_CAPACITY 1024
 
 typedef enum {
     TRAP_OK = 0,
@@ -129,6 +131,29 @@ String_View sv_chop_delim(String_View *sv, char delim);
 int sv_equal(String_View a, String_View b);
 Word sv_to_word(String_View sv);
 
+typedef struct {
+    String_View name;
+    Word addr;
+} Label;
+
+typedef struct {
+    Word addr;
+    String_View label;
+} Unresolved_Jmp;
+
+typedef struct {
+    Label labels[LABEL_CAPACITY];
+    size_t labels_size;
+    Unresolved_Jmp unresolved_jmps[UNRESOLVED_JMPS_CAPACITY];
+    size_t unresolved_jmps_size;
+} Label_Table;
+
+int label_table_find(const Label_Table *lt, String_View label);
+void label_table_push(Label_Table *lt, String_View label, Word addr);
+void label_table_push_unresolved_jmp(Label_Table *lt,
+                                     Word addr,
+                                     String_View label);
+
 /* Lisp Virtual Machine */
 typedef struct {
     /* Stack */
@@ -138,6 +163,9 @@ typedef struct {
     /* Code */
     Inst program[LIM_PROGRAM_CAPACITY];
     Word program_size;
+
+    /* Labels */
+    Label_Table label_table;
 
     /* State */
     Word ip;
@@ -149,9 +177,7 @@ void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size);
 void lim_load_program_from_file(Lim *lim, const char *file_path);
 void lim_save_program_to_file(Lim *lim, const char *file_path);
 String_View slurp_file(const char *file_path);
-size_t lim_translate_source(String_View source,
-                            Inst *program,
-                            size_t program_capacity);
+void lim_translate_source(String_View source, Lim *lim);
 void lim_dump_stack(FILE *stream, const Lim *lim);
 extern Lim lim;
 

@@ -1,4 +1,6 @@
 #include "lim.h"
+#include <assert.h>
+#include <stdio.h>
 
 const char *trap_as_cstr(Trap trap)
 {
@@ -127,6 +129,36 @@ Word sv_to_word(String_View sv)
         result = result * 10 + sv.data[i] - '0';
     }
     return result;
+}
+
+int label_table_find(const Label_Table *lt, String_View label)
+{
+    for (size_t i = 0; i < lt->labels_size; i++) {
+        if (sv_equal(label, lt->labels[i].name)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void label_table_push(Label_Table *lt, String_View label, Word addr)
+{
+    assert(lt->labels_size < LABEL_CAPACITY);
+    lt->labels[lt->labels_size++] = (Label){
+        .name = label,
+        .addr = addr,
+    };
+}
+
+void label_table_push_unresolved_jmp(Label_Table *lt,
+                                     Word addr,
+                                     String_View label)
+{
+    assert(lt->unresolved_jmps_size < LABEL_CAPACITY);
+    lt->unresolved_jmps[lt->unresolved_jmps_size++] = (Unresolved_Jmp){
+        .addr = addr,
+        .label = label,
+    };
 }
 
 Trap lim_execute_inst(Lim *lim)
@@ -408,7 +440,7 @@ String_View slurp_file(const char *file_path)
     };
 }
 
-Inst lim_translate_line(String_View line)
+Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
 {
     line = sv_trim_left(line);
     String_View inst_name = sv_chop_delim(&line, ' ');
@@ -427,15 +459,18 @@ Inst lim_translate_line(String_View line)
     } else if (sv_equal(inst_name, cstr_as_sv("div"))) {
         return (Inst) MAKE_INST_DIV();
     } else if (sv_equal(inst_name, cstr_as_sv("jmp"))) {
-        return (Inst) MAKE_INST_JMP(sv_to_word(operand));
+        label_table_push_unresolved_jmp(lt, addr, operand);
+        return (Inst){.type = INST_JMP};
     } else if (sv_equal(inst_name, cstr_as_sv("halt"))) {
         return (Inst) MAKE_INST_HALT();
     } else if (sv_equal(inst_name, cstr_as_sv("eq"))) {
         return (Inst) MAKE_INST_EQ();
     } else if (sv_equal(inst_name, cstr_as_sv("jnz"))) {
-        return (Inst) MAKE_INST_JNZ(sv_to_word(operand));
+        label_table_push_unresolved_jmp(lt, addr, operand);
+        return (Inst){.type = INST_JNZ};
     } else if (sv_equal(inst_name, cstr_as_sv("jz"))) {
-        return (Inst) MAKE_INST_JZ(sv_to_word(operand));
+        label_table_push_unresolved_jmp(lt, addr, operand);
+        return (Inst){.type = INST_JZ};
     } else if (sv_equal(inst_name, cstr_as_sv("dup"))) {
         return (Inst) MAKE_INST_DUP(sv_to_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv("print_debug"))) {
@@ -448,22 +483,37 @@ Inst lim_translate_line(String_View line)
     return (Inst) MAKE_INST_NOP();
 }
 
-size_t lim_translate_source(String_View source,
-                            Inst *program,
-                            size_t program_capacity)
+void lim_translate_source(String_View source, Lim *lim)
 {
-    size_t program_size = 0;
+    lim->program_size = 0;
 
+    // First pass
     while (source.count > 0) {
-        assert(program_size < program_capacity);
+        assert(lim->program_size < LIM_PROGRAM_CAPACITY);
         String_View line = sv_chop_delim(&source, '\n');
         // skip blank lines and comments
         if (line.count == 0 || *line.data == '#')
             continue;
-        program[program_size++] = lim_translate_line(line);
+        if (line.count > 0 && line.data[line.count - 1] == ':') {
+            label_table_push(
+                &lim->label_table,
+                (String_View){.count = line.count - 1, .data = line.data},
+                lim->program_size);
+            continue;
+        }
+
+        Inst inst =
+            lim_translate_line(&lim->label_table, lim->program_size, line);
+        lim->program[lim->program_size++] = inst;
     }
 
-    return program_size;
+    // Second pass
+    for (size_t i = 0; i < lim->label_table.unresolved_jmps_size; i++) {
+        int j = label_table_find(&lim->label_table,
+                                 lim->label_table.unresolved_jmps[i].label);
+        lim->program[lim->label_table.unresolved_jmps[i].addr].operand =
+            lim->label_table.labels[j].addr;
+    }
 }
 
 void lim_dump_stack(FILE *stream, const Lim *lim)

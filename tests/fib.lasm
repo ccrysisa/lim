@@ -1,7 +1,9 @@
 # First two fibonacci numbers
   push 0 # first
   push 1 # second
+  jmp loop
 # The loop
+loop:
   dup 1
   dup 1
   plus
@@ -9,6 +11,6 @@
   dup 0
   push 2584
   eq
-  jz 2  # jump by loop
+  jz loop  # jump by loop
 
   halt
