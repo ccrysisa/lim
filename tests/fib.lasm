@@ -3,8 +3,7 @@
   push 0 # first
   push 1 # second
   jmp loop
-# The loop
-loop:
+loop: # The loop
   dup 1
   dup 1
   plus

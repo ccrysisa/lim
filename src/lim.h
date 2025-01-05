@@ -128,6 +128,7 @@ String_View sv_trim_left(String_View sv);
 String_View sv_trim_right(String_View sv);
 String_View sv_trim(String_View sv);
 String_View sv_chop_delim(String_View *sv, char delim);
+String_View sv_delim(String_View sv, char delim);
 int sv_equal(String_View a, String_View b);
 Word sv_to_word(String_View sv);
 
@@ -142,17 +143,19 @@ typedef struct {
 } Unresolved_Jmp;
 
 typedef struct {
+    /* Label declarations */
     Label labels[LABEL_CAPACITY];
     size_t labels_size;
+
+    /* Unresolved jump instructions */
     Unresolved_Jmp unresolved_jmps[UNRESOLVED_JMPS_CAPACITY];
     size_t unresolved_jmps_size;
-} Label_Table;
+} Lasm;
 
-int label_table_find(const Label_Table *lt, String_View label);
-void label_table_push(Label_Table *lt, String_View label, Word addr);
-void label_table_push_unresolved_jmp(Label_Table *lt,
-                                     Word addr,
-                                     String_View label);
+int label_table_find(const Lasm *lasm, String_View label);
+void label_table_push(Lasm *lasm, String_View label, Word addr);
+void label_table_push_unresolved_jmp(Lasm *lasm, Word addr, String_View label);
+extern Lasm lasm;
 
 /* Lisp Virtual Machine */
 typedef struct {
@@ -164,9 +167,6 @@ typedef struct {
     Inst program[LIM_PROGRAM_CAPACITY];
     Word program_size;
 
-    /* Labels */
-    Label_Table label_table;
-
     /* State */
     Word ip;
     int halt;
@@ -177,7 +177,7 @@ void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size);
 void lim_load_program_from_file(Lim *lim, const char *file_path);
 void lim_save_program_to_file(Lim *lim, const char *file_path);
 String_View slurp_file(const char *file_path);
-void lim_translate_source(String_View source, Lim *lim);
+void lim_translate_source(String_View source, Lim *lim, Lasm *lasm);
 void lim_dump_stack(FILE *stream, const Lim *lim);
 extern Lim lim;
 

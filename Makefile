@@ -4,7 +4,7 @@ TEST:=tests
 
 TARGET:= ./lasm ./lime ./delasm
 
-CFLAGS=-Wall -Wextra -Wswitch-enum -std=c11 -pedantic
+CFLAGS=-Wall -Wextra -Wswitch-enum -Wmissing-prototypes -std=c11 -pedantic
 LIBS= 
 
 all: $(BUILD)/lasm $(BUILD)/lime $(BUILD)/delasm

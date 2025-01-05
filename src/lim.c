@@ -95,6 +95,7 @@ String_View sv_trim(String_View sv)
     return sv_trim_right(sv_trim_left(sv));
 }
 
+// Delimite a word by `delim` with changing `sv`
 String_View sv_chop_delim(String_View *sv, char delim)
 {
     size_t i = 0;
@@ -110,6 +111,20 @@ String_View sv_chop_delim(String_View *sv, char delim)
     return (String_View){
         .count = i,
         .data = data,
+    };
+}
+
+// Delimite a word by `delim` without changing `sv`
+String_View sv_delim(String_View sv, char delim)
+{
+    size_t i = 0;
+    while (i < sv.count && sv.data[i] != delim) {
+        i++;
+    }
+
+    return (String_View){
+        .count = i,
+        .data = sv.data,
     };
 }
 
@@ -129,37 +144,35 @@ Word sv_to_word(String_View sv)
     return result;
 }
 
-int label_table_find(const Label_Table *lt, String_View label)
+int label_table_find(const Lasm *lasm, String_View label)
 {
-    for (size_t i = 0; i < lt->labels_size; i++) {
-        if (sv_equal(label, lt->labels[i].name)) {
+    for (size_t i = 0; i < lasm->labels_size; i++) {
+        if (sv_equal(label, lasm->labels[i].name)) {
             return i;
         }
     }
     return -1;
 }
 
-void label_table_push(Label_Table *lt, String_View label, Word addr)
+void label_table_push(Lasm *lasm, String_View label, Word addr)
 {
-    assert(lt->labels_size < LABEL_CAPACITY);
-    lt->labels[lt->labels_size++] = (Label){
+    assert(lasm->labels_size < LABEL_CAPACITY);
+    lasm->labels[lasm->labels_size++] = (Label){
         .name = label,
         .addr = addr,
     };
 }
 
-void label_table_push_unresolved_jmp(Label_Table *lt,
-                                     Word addr,
-                                     String_View label)
+void label_table_push_unresolved_jmp(Lasm *lasm, Word addr, String_View label)
 {
-    assert(lt->unresolved_jmps_size < LABEL_CAPACITY);
-    lt->unresolved_jmps[lt->unresolved_jmps_size++] = (Unresolved_Jmp){
+    assert(lasm->unresolved_jmps_size < LABEL_CAPACITY);
+    lasm->unresolved_jmps[lasm->unresolved_jmps_size++] = (Unresolved_Jmp){
         .addr = addr,
         .label = label,
     };
 }
 
-Trap lim_execute_inst(Lim *lim)
+static Trap lim_execute_inst(Lim *lim)
 {
     if (lim->ip < 0 || lim->ip >= lim->program_size) {
         return TRAP_ILLEGAL_INST_ACCESS;
@@ -438,7 +451,7 @@ String_View slurp_file(const char *file_path)
     };
 }
 
-Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
+static Inst lim_translate_line(Lasm *lasm, Word addr, String_View line)
 {
     line = sv_trim_left(line);
     String_View inst_name = sv_chop_delim(&line, ' ');
@@ -466,21 +479,21 @@ Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
         if (operand.count > 0 && isdigit(*operand.data)) {
             return (Inst) MAKE_INST_JMP(sv_to_word(operand));
         } else {
-            label_table_push_unresolved_jmp(lt, addr, operand);
+            label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JMP};
         }
     } else if (sv_equal(inst_name, cstr_as_sv("jnz"))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
             return (Inst) MAKE_INST_JNZ(sv_to_word(operand));
         } else {
-            label_table_push_unresolved_jmp(lt, addr, operand);
+            label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JNZ};
         }
     } else if (sv_equal(inst_name, cstr_as_sv("jz"))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
             return (Inst) MAKE_INST_JZ(sv_to_word(operand));
         } else {
-            label_table_push_unresolved_jmp(lt, addr, operand);
+            label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JZ};
         }
     } else if (sv_equal(inst_name, cstr_as_sv("print_debug"))) {
@@ -493,7 +506,7 @@ Inst lim_translate_line(Label_Table *lt, Word addr, String_View line)
     return (Inst) MAKE_INST_NOP();
 }
 
-void lim_translate_source(String_View source, Lim *lim)
+void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
 {
     lim->program_size = 0;
 
@@ -501,43 +514,33 @@ void lim_translate_source(String_View source, Lim *lim)
     while (source.count > 0) {
         assert(lim->program_size < LIM_PROGRAM_CAPACITY);
         String_View line = sv_chop_delim(&source, '\n');
-        // skip blank lines and comments
-        if (line.count == 0 || *line.data == '#')
-            continue;
-        if (line.count > 0 && line.data[line.count - 1] == ':') {
+        line = sv_trim_left(line);
+
+        String_View word = sv_delim(line, ' ');
+
+        // labels
+        if (word.count > 0 && word.data[word.count - 1] == ':') {
             label_table_push(
-                &lim->label_table,
-                (String_View){.count = line.count - 1, .data = line.data},
+                lasm, (String_View){.count = word.count - 1, .data = word.data},
                 lim->program_size);
-            continue;
+            sv_chop_delim(&line, ' ');
+            line = sv_trim_left(line);
+            word = sv_delim(line, ' ');
         }
 
-        Inst inst =
-            lim_translate_line(&lim->label_table, lim->program_size, line);
+        // skip blank lines and comments
+        if (word.count == 0 || *word.data == '#')
+            continue;
+
+        Inst inst = lim_translate_line(lasm, lim->program_size, line);
         lim->program[lim->program_size++] = inst;
     }
 
-    printf("Labels: \n");
-    for (size_t i = 0; i < lim->label_table.labels_size; i++) {
-        printf("%ld -> %.*s\n", lim->label_table.labels[i].addr,
-               (int) lim->label_table.labels[i].name.count,
-               lim->label_table.labels[i].name.data);
-    }
-
-    printf("Unresolved Jmps: \n");
-    for (size_t i = 0; i < lim->label_table.unresolved_jmps_size; i++) {
-        printf("%.*s -> %ld\n",
-               (int) lim->label_table.unresolved_jmps[i].label.count,
-               lim->label_table.unresolved_jmps[i].label.data,
-               lim->label_table.unresolved_jmps[i].addr);
-    }
-
     // Second pass
-    for (size_t i = 0; i < lim->label_table.unresolved_jmps_size; i++) {
-        int j = label_table_find(&lim->label_table,
-                                 lim->label_table.unresolved_jmps[i].label);
-        lim->program[lim->label_table.unresolved_jmps[i].addr].operand =
-            lim->label_table.labels[j].addr;
+    for (size_t i = 0; i < lasm->unresolved_jmps_size; i++) {
+        int j = label_table_find(lasm, lasm->unresolved_jmps[i].label);
+        lim->program[lasm->unresolved_jmps[i].addr].operand =
+            lasm->labels[j].addr;
     }
 }
 
@@ -553,8 +556,6 @@ void lim_dump_stack(FILE *stream, const Lim *lim)
     }
 }
 
-Lim lim = {0};
-
 const char *shift_args(int *argc, char ***argv)
 {
     assert(*argc > 0);
@@ -563,3 +564,6 @@ const char *shift_args(int *argc, char ***argv)
     *argc -= 1;
     return result;
 }
+
+Lim lim = {0};
+Lasm lasm = {0};
