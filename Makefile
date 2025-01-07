@@ -2,12 +2,12 @@ SRC:=src
 BUILD:=build
 TEST:=tests
 
-TARGET:= ./lasm ./lime ./delasm
+TARGET:= ./lasm ./lime ./delasm ./nan
 
 CFLAGS=-Wall -Wextra -Wswitch-enum -Wmissing-prototypes -std=c11 -pedantic
 LIBS= 
 
-all: $(BUILD)/lasm $(BUILD)/lime $(BUILD)/delasm
+all: $(BUILD)/lasm $(BUILD)/lime $(BUILD)/delasm $(BUILD)/nan
 
 $(BUILD)/lasm: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/lasm.c
 	$(CC) $(CFLAGS) $(filter-out $<, $^) -o $@ $(LIBS)
@@ -19,6 +19,10 @@ $(BUILD)/lime: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/lime.c
 
 $(BUILD)/delasm: $(SRC)/lim.h $(SRC)/lim.c $(SRC)/delasm.c
 	$(CC) $(CFLAGS) $(filter-out $<, $^) -o $@ $(LIBS)
+	@ln -s $@
+
+$(BUILD)/nan: $(SRC)/nan.c
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
 	@ln -s $@
 
 examples: all $(TEST)/fib.lim $(TEST)/123.lim
