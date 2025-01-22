@@ -31,6 +31,7 @@ $ ./lime -i <input.lim>
 $ ./delasm -i <input.lim>
 
 # Generate compile_commands.json (make sure you have intsalled bear)
+$ make clean
 $ bear -- make
 ```
 

@@ -99,7 +99,7 @@ static double make_inf(void)
 
 static int is_double(double x)
 {
-    return !is_nan(x);
+    return !is_nan(x) || (is_nan(x) && get_type(x) == TYPE(DOUBLE_T));
 }
 
 static int is_integer(double x)
@@ -114,18 +114,19 @@ static int is_pointer(double x)
 
 static double as_double(double x)
 {
+    assert(is_double(x));
     return x;
 }
 
 static uint64_t as_integer(double x)
 {
-    assert(is_nan(x));
+    assert(is_integer(x));
     return get_value(x);
 }
 
 static void *as_pointer(double x)
 {
-    assert(is_nan(x));
+    assert(is_pointer(x));
     return (void *) get_value(x);
 }
 
