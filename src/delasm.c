@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
             printf("nop\n");
             break;
         case INST_PUSH:
-            printf("push %ld\n", lim.program[i].operand);
+            printf("push %ld\n", lim.program[i].operand.as_i64);
             break;
         case INST_PLUS:
             printf("plus\n");
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
             printf("div\n");
             break;
         case INST_JMP:
-            printf("jmp %ld\n", lim.program[i].operand);
+            printf("jmp %ld\n", lim.program[i].operand.as_i64);
             break;
         case INST_HALT:
             printf("halt\n");
@@ -59,19 +59,19 @@ int main(int argc, char *argv[])
             printf("eq\n");
             break;
         case INST_JNZ:
-            printf("jnz %ld\n", lim.program[i].operand);
+            printf("jnz %ld\n", lim.program[i].operand.as_i64);
             break;
         case INST_JZ:
-            printf("jz %ld\n", lim.program[i].operand);
+            printf("jz %ld\n", lim.program[i].operand.as_i64);
             break;
         case INST_DUP:
-            printf("dup %ld\n", lim.program[i].operand);
+            printf("dup %ld\n", lim.program[i].operand.as_i64);
             break;
         case INST_PRINT_DEBUG:
             break;
         default:
-            fprintf(stderr, "ERROR: unknown instruction `%u%ld`\n",
-                    lim.program[i].type, lim.program[i].operand);
+            fprintf(stderr, "ERROR: unknown instruction `%u %ld`\n",
+                    lim.program[i].type, lim.program[i].operand.as_i64);
             return 1;
         }
     }

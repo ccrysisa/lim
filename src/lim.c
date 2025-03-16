@@ -137,11 +137,11 @@ Word sv_to_word(String_View sv)
 {
     // can just using atoi/atol/atoll to convert, but for compatibility we
     // implement this function by hand.
-    Word result = 0;
+    int64_t result = 0;
     for (size_t i = 0; i < sv.count && isdigit(sv.data[i]); i++) {
         result = result * 10 + sv.data[i] - '0';
     }
-    return result;
+    return (Word){.as_i64 = result};
 }
 
 int label_table_find(const Lasm *lasm, String_View label)
@@ -154,7 +154,7 @@ int label_table_find(const Lasm *lasm, String_View label)
     return -1;
 }
 
-void label_table_push(Lasm *lasm, String_View label, Word addr)
+void label_table_push(Lasm *lasm, String_View label, Inst_Addr addr)
 {
     assert(lasm->labels_size < LABEL_CAPACITY);
     lasm->labels[lasm->labels_size++] = (Label){
@@ -163,7 +163,9 @@ void label_table_push(Lasm *lasm, String_View label, Word addr)
     };
 }
 
-void label_table_push_unresolved_jmp(Lasm *lasm, Word addr, String_View label)
+void label_table_push_unresolved_jmp(Lasm *lasm,
+                                     Inst_Addr addr,
+                                     String_View label)
 {
     assert(lasm->unresolved_jmps_size < LABEL_CAPACITY);
     lasm->unresolved_jmps[lasm->unresolved_jmps_size++] = (Unresolved_Jmp){
@@ -174,7 +176,7 @@ void label_table_push_unresolved_jmp(Lasm *lasm, Word addr, String_View label)
 
 static Trap lim_execute_inst(Lim *lim)
 {
-    if (lim->ip < 0 || lim->ip >= lim->program_size) {
+    if (lim->ip >= lim->program_size) {
         return TRAP_ILLEGAL_INST_ACCESS;
     }
 
@@ -199,7 +201,8 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        lim->stack[lim->stack_size - 2] += lim->stack[lim->stack_size - 1];
+        lim->stack[lim->stack_size - 2].as_i64 +=
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -208,7 +211,8 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        lim->stack[lim->stack_size - 2] -= lim->stack[lim->stack_size - 1];
+        lim->stack[lim->stack_size - 2].as_i64 -=
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -217,7 +221,8 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        lim->stack[lim->stack_size - 2] *= lim->stack[lim->stack_size - 1];
+        lim->stack[lim->stack_size - 2].as_i64 *=
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -226,10 +231,11 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        if (lim->stack[lim->stack_size - 1] == 0) {
+        if (lim->stack[lim->stack_size - 1].as_i64 == 0) {
             return TRAP_DIV_BY_ZERO;
         }
-        lim->stack[lim->stack_size - 2] /= lim->stack[lim->stack_size - 1];
+        lim->stack[lim->stack_size - 2].as_i64 /=
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -238,19 +244,20 @@ static Trap lim_execute_inst(Lim *lim)
         // In this instruction, its address counld be illegal, since during next
         // instruction execution this function would return trap/error
         // TRAP_ILLEGAL_INST_ACCESS.
-        lim->ip = inst.operand;
+        lim->ip = inst.operand.as_u64;
         break;
 
     case INST_HALT:
-        lim->halt = 1;
+        lim->halt = true;
         break;
 
     case INST_EQ:
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        lim->stack[lim->stack_size - 2] =
-            lim->stack[lim->stack_size - 2] == lim->stack[lim->stack_size - 1];
+        lim->stack[lim->stack_size - 2].as_i64 =
+            lim->stack[lim->stack_size - 2].as_i64 ==
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -262,8 +269,8 @@ static Trap lim_execute_inst(Lim *lim)
         // In this instruction, its address counld be illegal, since during next
         // instruction execution this function would return trap/error
         // TRAP_ILLEGAL_INST_ACCESS.
-        if (lim->stack[--lim->stack_size]) {
-            lim->ip = inst.operand;
+        if (lim->stack[--lim->stack_size].as_u64) {
+            lim->ip = inst.operand.as_u64;
         } else {
             lim->ip++;
         }
@@ -276,8 +283,8 @@ static Trap lim_execute_inst(Lim *lim)
         // In this instruction, its address counld be illegal, since during next
         // instruction execution this function would return trap/error
         // TRAP_ILLEGAL_INST_ACCESS.
-        if (!lim->stack[--lim->stack_size]) {
-            lim->ip = inst.operand;
+        if (!lim->stack[--lim->stack_size].as_u64) {
+            lim->ip = inst.operand.as_u64;
         } else {
             lim->ip++;
         }
@@ -290,15 +297,12 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size >= LIM_STACK_CAPACITY) {
             return TRAP_STACK_OVERFLOW;
         }
-        if (inst.operand < 0) {
-            return TRAP_ILLEGAL_OPERAND;
-        }
-        if (lim->stack_size - inst.operand <= 0) {
+        if (lim->stack_size <= inst.operand.as_u64) {
             return TRAP_STACK_UNDERFLOW;
         }
 
         lim->stack[lim->stack_size] =
-            lim->stack[lim->stack_size - 1 - inst.operand];
+            lim->stack[lim->stack_size - 1 - inst.operand.as_u64];
         lim->stack_size++;
         lim->ip++;
         break;
@@ -307,7 +311,9 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 1) {
             return TRAP_STACK_UNDERFLOW;
         }
-        printf("%ld\n", lim->stack[--lim->stack_size]);
+        Word word = lim->stack[--lim->stack_size];
+        printf("%lu %ld %lf %p\n", word.as_u64, word.as_i64, word.as_f64,
+               word.as_ptr);
         lim->ip++;
         break;
 
@@ -329,7 +335,9 @@ Trap lim_execute_program(Lim *lim)
     return TRAP_OK;
 }
 
-void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size)
+void lim_load_program_from_memory(Lim *lim,
+                                  Inst *program,
+                                  uint64_t program_size)
 {
     assert(program_size <= LIM_PROGRAM_CAPACITY);
 
@@ -451,7 +459,7 @@ String_View slurp_file(const char *file_path)
     };
 }
 
-static Inst lim_translate_line(Lasm *lasm, Word addr, String_View line)
+static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
 {
     line = sv_trim_left(line);
     String_View inst_name = sv_chop_delim(&line, ' ');
@@ -518,6 +526,13 @@ void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
 
         String_View word = sv_delim(line, ' ');
 
+        // example:
+        // ```
+        // label: #comment
+        // ```
+        // Note: this implementation requires label and instruction can not
+        // locate in the same line
+
         // labels
         if (word.count > 0 && word.data[word.count - 1] == ':') {
             label_table_push(
@@ -539,7 +554,7 @@ void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
     // Second pass
     for (size_t i = 0; i < lasm->unresolved_jmps_size; i++) {
         int j = label_table_find(lasm, lasm->unresolved_jmps[i].label);
-        lim->program[lasm->unresolved_jmps[i].addr].operand =
+        lim->program[lasm->unresolved_jmps[i].addr].operand.as_i64 =
             lasm->labels[j].addr;
     }
 }
@@ -547,9 +562,12 @@ void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
 void lim_dump_stack(FILE *stream, const Lim *lim)
 {
     fprintf(stream, "Stack:\n");
+    fprintf(stream, "  u64\ti64\tf64\tptr\n");
     if (lim->stack_size > 0) {
-        for (Word i = 0; i < lim->stack_size; i++) {
-            fprintf(stream, "  %ld\n", lim->stack[i]);
+        for (uint64_t i = 0; i < lim->stack_size; i++) {
+            fprintf(stream, "  %lu\t%ld\t%lf\t%p\n", lim->stack[i].as_u64,
+                    lim->stack[i].as_i64, lim->stack[i].as_f64,
+                    lim->stack[i].as_ptr);
         }
     } else {
         fprintf(stream, "  [empty]\n");

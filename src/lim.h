@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +29,17 @@ typedef enum {
 
 const char *trap_as_cstr(Trap trap);
 
-typedef int64_t Word;
+typedef uint64_t Inst_Addr;
+
+typedef union Word {
+    uint64_t as_u64;  // used for address
+    int64_t as_i64;   // used for integer (and bit sequence)
+    double as_f64;    // used for float point number
+    void *as_ptr;     // used for pointer and object
+} Word;
+
+static_assert(sizeof(Word) == 8,
+              "LIM's word is expected to be 8 bytes aka 64 bites");
 
 typedef enum {
     INST_NOP = 0,
@@ -133,13 +144,13 @@ int sv_equal(String_View a, String_View b);
 Word sv_to_word(String_View sv);
 
 typedef struct {
-    String_View name;
-    Word addr;
+    String_View name;  // the name of the label
+    Inst_Addr addr;    // corresponding address of the label
 } Label;
 
 typedef struct {
-    Word addr;
-    String_View label;
+    Inst_Addr addr;     // the address which exists unresolved jump label
+    String_View label;  // unresolved jump label in the instruction
 } Unresolved_Jmp;
 
 typedef struct {
@@ -153,27 +164,31 @@ typedef struct {
 } Lasm;
 
 int label_table_find(const Lasm *lasm, String_View label);
-void label_table_push(Lasm *lasm, String_View label, Word addr);
-void label_table_push_unresolved_jmp(Lasm *lasm, Word addr, String_View label);
+void label_table_push(Lasm *lasm, String_View label, Inst_Addr addr);
+void label_table_push_unresolved_jmp(Lasm *lasm,
+                                     Inst_Addr addr,
+                                     String_View label);
 extern Lasm lasm;
 
 /* Lisp Virtual Machine */
 typedef struct {
     /* Stack */
     Word stack[LIM_STACK_CAPACITY];
-    Word stack_size;
+    uint64_t stack_size;
 
     /* Code */
     Inst program[LIM_PROGRAM_CAPACITY];
-    Word program_size;
+    uint64_t program_size;
 
     /* State */
-    Word ip;
-    int halt;
+    Inst_Addr ip;
+    bool halt;
 } Lim;
 
 Trap lim_execute_program(Lim *lim);
-void lim_load_program_from_memory(Lim *lim, Inst *program, Word program_size);
+void lim_load_program_from_memory(Lim *lim,
+                                  Inst *program,
+                                  uint64_t program_size);
 void lim_load_program_from_file(Lim *lim, const char *file_path);
 void lim_save_program_to_file(Lim *lim, const char *file_path);
 String_View slurp_file(const char *file_path);
