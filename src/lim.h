@@ -48,6 +48,10 @@ typedef enum {
     INST_MINUS,
     INST_MULT,
     INST_DIV,
+    INST_FPLUS,
+    INST_FMINUS,
+    INST_FMULT,
+    INST_FDIV,
     INST_JMP,
     INST_HALT,
     INST_EQ,
@@ -55,9 +59,11 @@ typedef enum {
     INST_JZ,
     INST_DUP,
     INST_PRINT_DEBUG,
+    INST_NUM,
 } Inst_Type;
 
-const char *inst_type_as_cstr(Inst_Type type);
+extern const char *inst_type_as_cstr[INST_NUM];
+extern const bool inst_has_operand[INST_NUM];
 
 typedef struct {
     Inst_Type type;

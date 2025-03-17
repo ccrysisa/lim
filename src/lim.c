@@ -22,40 +22,6 @@ const char *trap_as_cstr(Trap trap)
     }
 }
 
-const char *inst_type_as_cstr(Inst_Type type)
-{
-    switch (type) {
-    case INST_NOP:
-        return "INST_NOP";
-    case INST_PUSH:
-        return "INST_PUSH";
-    case INST_PLUS:
-        return "INST_PLUS";
-    case INST_MINUS:
-        return "INST_MINUS";
-    case INST_MULT:
-        return "INST_MULT";
-    case INST_DIV:
-        return "INST_DIV";
-    case INST_JMP:
-        return "INST_JMP";
-    case INST_HALT:
-        return "INST_HALT";
-    case INST_EQ:
-        return "INST_EQ";
-    case INST_JNZ:
-        return "INST_JNZ";
-    case INST_JZ:
-        return "INST_JZ";
-    case INST_DUP:
-        return "INST_DUP";
-    case INST_PRINT_DEBUG:
-        return "INST_PRINT_DEBUG";
-    default:
-        assert(0 && "inst_type_as_cstr: unreachable");
-    }
-}
-
 String_View cstr_as_sv(char *str)
 {
     return (String_View){
@@ -582,6 +548,30 @@ const char *shift_args(int *argc, char ***argv)
     *argc -= 1;
     return result;
 }
+
+const char *inst_type_as_cstr[INST_NUM] = {
+    [INST_NOP] = "nop",
+    [INST_PUSH] = "push",
+    [INST_PLUS] = "plus",
+    [INST_MINUS] = "minus",
+    [INST_MULT] = "mult",
+    [INST_DIV] = "div",
+    [INST_JMP] = "jmp",
+    [INST_HALT] = "halt",
+    [INST_EQ] = "eq",
+    [INST_JNZ] = "jnz",
+    [INST_JZ] = "jz",
+    [INST_DUP] = "dup",
+    [INST_PRINT_DEBUG] = "print_debug",
+};
+
+const bool inst_has_operand[INST_NUM] = {
+    [INST_NOP] = false,         [INST_PUSH] = true,  [INST_PLUS] = false,
+    [INST_MINUS] = false,       [INST_MULT] = false, [INST_DIV] = false,
+    [INST_JMP] = true,          [INST_HALT] = false, [INST_EQ] = false,
+    [INST_JNZ] = true,          [INST_JZ] = true,    [INST_DUP] = true,
+    [INST_PRINT_DEBUG] = false,
+};
 
 Lim lim = {0};
 Lasm lasm = {0};
