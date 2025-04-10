@@ -172,7 +172,6 @@ int sv_equal(String_View a, String_View b)
     return a.count == b.count && !strncmp(a.data, b.data, a.count);
 }
 
-// TODO: support floating point
 Word sv_to_word(String_View sv)
 {
     // can just using atoi/atol/atoll to convert, but for compatibility we
@@ -328,9 +327,6 @@ static Trap lim_execute_inst(Lim *lim)
         if (lim->stack_size < 2) {
             return TRAP_STACK_UNDERFLOW;
         }
-        if (lim->stack[lim->stack_size - 1].as_i64 == 0) {
-            return TRAP_DIV_BY_ZERO;
-        }
         lim->stack[lim->stack_size - 2].as_f64 /=
             lim->stack[lim->stack_size - 1].as_f64;
         lim->stack_size--;
@@ -397,6 +393,7 @@ static Trap lim_execute_inst(Lim *lim)
         lim->ip++;
         break;
 
+    case INST_NUM:
     default:
         return TRAP_ILLEGAL_INST;
     }
@@ -539,6 +536,30 @@ String_View slurp_file(const char *file_path)
     };
 }
 
+Word number_literal_as_word(String_View sv)
+{
+    assert(sv.count < 1024);
+    char str[sv.count + 1];
+
+    memcpy(str, sv.data, sv.count);
+    str[sv.count] = '\0';
+
+    Word result = {0};
+
+    char *endptr = NULL;
+    result.as_i64 = strtoll(str, &endptr, 10);
+    if ((size_t) (endptr - str) != sv.count) {
+        result.as_f64 = strtod(str, &endptr);
+        if ((size_t) (endptr - str) != sv.count) {
+            fprintf(stderr, "ERROR: %s is not a valid number literal\n", str);
+            assert(false);
+            exit(1);
+        }
+    }
+
+    return result;
+}
+
 static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
 {
     line = sv_trim_left(line);
@@ -548,9 +569,9 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
     if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_NOP)))) {
         return (Inst) MAKE_INST_NOP();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PUSH)))) {
-        return (Inst) MAKE_INST_PUSH(sv_to_word(operand));
+        return (Inst) MAKE_INST_PUSH(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_DUP)))) {
-        return (Inst) MAKE_INST_DUP(sv_to_word(operand));
+        return (Inst) MAKE_INST_DUP(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PLUS)))) {
         return (Inst) MAKE_INST_PLUS();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_MINUS)))) {
@@ -618,7 +639,7 @@ void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
 
         // example:
         // ```
-        // label: #comment
+        // label: # comment
         // ```
         // Note: this implementation requires label and instruction can not
         // locate in the same line

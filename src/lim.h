@@ -1,5 +1,5 @@
-#ifndef LIM_H
-#define LIM_H
+#ifndef __LIM_H
+#define __LIM_H
 
 #include <assert.h>
 #include <ctype.h>
@@ -217,6 +217,7 @@ void lim_load_program_from_memory(Lim *lim,
 void lim_load_program_from_file(Lim *lim, const char *file_path);
 void lim_save_program_to_file(Lim *lim, const char *file_path);
 String_View slurp_file(const char *file_path);
+Word number_literal_as_word(String_View sv);
 void lim_translate_source(String_View source, Lim *lim, Lasm *lasm);
 void lim_dump_stack(FILE *stream, const Lim *lim);
 extern Lim lim;
