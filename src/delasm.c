@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
     lim_load_program_from_file(&lim, input_file_path);
     for (size_t i = 0; i < (size_t) lim.program_size; i++) {
         const Inst inst = lim.program[i];
-        printf("%s", inst_type_as_cstr[inst.type]);
-        if (inst_has_operand[inst.type]) {
+        printf("%s", inst_type_as_cstr(inst.type));
+        if (inst_has_operand(inst.type)) {
             printf(" %ld", inst.operand.as_i64);
         }
         printf("\n");

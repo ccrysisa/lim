@@ -1,0 +1,8 @@
+# Test comment
+  push 1.0
+  push 2.0
+  push 3.0
+# Add floating point
+  fplus
+  fplus
+  halt

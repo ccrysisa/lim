@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG 0
 #define ARRAY_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
 #define LIM_STACK_CAPACITY 1024
 #define LIM_PROGRAM_CAPACITY 1024
@@ -44,6 +43,7 @@ static_assert(sizeof(Word) == 8,
 typedef enum {
     INST_NOP = 0,
     INST_PUSH,
+    INST_DUP,
     INST_PLUS,
     INST_MINUS,
     INST_MULT,
@@ -52,18 +52,17 @@ typedef enum {
     INST_FMINUS,
     INST_FMULT,
     INST_FDIV,
-    INST_JMP,
-    INST_HALT,
     INST_EQ,
+    INST_JMP,
     INST_JNZ,
     INST_JZ,
-    INST_DUP,
+    INST_HALT,
     INST_PRINT_DEBUG,
     INST_NUM,
 } Inst_Type;
 
-extern const char *inst_type_as_cstr[INST_NUM];
-extern const bool inst_has_operand[INST_NUM];
+const char *inst_type_as_cstr(Inst_Type type);
+bool inst_has_operand(Inst_Type type);
 
 typedef struct {
     Inst_Type type;
@@ -78,6 +77,11 @@ typedef struct {
 #define /*Inst*/ MAKE_INST_PUSH(/*Word*/ value) \
     {                                           \
         .type = INST_PUSH, .operand = (value),  \
+    }
+
+#define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
+    {                                           \
+        .type = INST_DUP, .operand = (offset),  \
     }
 
 #define /*Inst*/ MAKE_INST_PLUS(/*void*/) \
@@ -100,19 +104,34 @@ typedef struct {
         .type = INST_DIV                 \
     }
 
-#define /*Inst*/ MAKE_INST_JMP(/*Word*/ addr) \
-    {                                         \
-        .type = INST_JMP, .operand = (addr),  \
+#define /*Inst*/ MAKE_INST_FPLUS(/*void*/) \
+    {                                      \
+        .type = INST_FPLUS                 \
     }
 
-#define /*Inst*/ MAKE_INST_HALT(/*void*/) \
+#define /*Inst*/ MAKE_INST_FMINUS(/*void*/) \
+    {                                       \
+        .type = INST_FMINUS                 \
+    }
+
+#define /*Inst*/ MAKE_INST_FMULT(/*void*/) \
+    {                                      \
+        .type = INST_FMULT                 \
+    }
+
+#define /*Inst*/ MAKE_INST_FDIV(/*void*/) \
     {                                     \
-        .type = INST_HALT                 \
+        .type = INST_FDIV                 \
     }
 
 #define /*Inst*/ MAKE_INST_EQ(/*void*/) \
     {                                   \
         .type = INST_EQ                 \
+    }
+
+#define /*Inst*/ MAKE_INST_JMP(/*Word*/ addr) \
+    {                                         \
+        .type = INST_JMP, .operand = (addr),  \
     }
 
 #define /*Inst*/ MAKE_INST_JNZ(/*Word*/ addr) \
@@ -125,9 +144,9 @@ typedef struct {
         .type = INST_JZ, .operand = (addr),  \
     }
 
-#define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
-    {                                           \
-        .type = INST_DUP, .operand = (offset),  \
+#define /*Inst*/ MAKE_INST_HALT(/*void*/) \
+    {                                     \
+        .type = INST_HALT                 \
     }
 
 #define /*Inst*/ MAKE_INST_PRINT_DEBUG(/*void*/) \
@@ -140,7 +159,7 @@ typedef struct {
     const char *data;
 } String_View;
 
-String_View cstr_as_sv(char *str);
+String_View cstr_as_sv(const char *str);
 String_View sv_trim_left(String_View sv);
 String_View sv_trim_right(String_View sv);
 String_View sv_trim(String_View sv);
