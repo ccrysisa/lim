@@ -56,6 +56,7 @@ typedef enum {
     INST_JMP,
     INST_JNZ,
     INST_JZ,
+    INST_SWAP,
     INST_HALT,
     INST_PRINT_DEBUG,
     INST_NUM,
@@ -142,6 +143,11 @@ typedef struct {
 #define /*Inst*/ MAKE_INST_JZ(/*Word*/ addr) \
     {                                        \
         .type = INST_JZ, .operand = (addr),  \
+    }
+
+#define /*Inst*/ MAKE_INST_SWAP(/*Word*/ offset) \
+    {                                            \
+        .type = INST_SWAP, .operand = (offset),  \
     }
 
 #define /*Inst*/ MAKE_INST_HALT(/*void*/) \

@@ -1,0 +1,37 @@
+# e = 1 + sum(1/n!)
+# e.g. e = 1 + 1/1 + 1/(1*2) + 1/(1*2*3) + ...
+  push 1.0      # sum
+  push 1.0      # n!
+  push 1.0      # n
+  push 0        # counter
+
+loop:
+  # update sum
+  swap 3
+  push 1.0
+  dup 3
+  fdiv
+  fplus
+  swap 3
+
+  # update n
+  swap 1
+  push 1.0
+  fplus
+  swap 1
+
+  # update n!
+  swap 2
+  dup 1
+  fmult
+  swap 2
+
+  # update counter
+  push 1
+  plus
+  dup 0
+  push 10
+  eq
+  jz loop
+
+  halt

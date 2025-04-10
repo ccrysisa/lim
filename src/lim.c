@@ -55,6 +55,8 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "jnz";
     case INST_JZ:
         return "jz";
+    case INST_SWAP:
+        return "swap";
     case INST_HALT:
         return "halt";
     case INST_PRINT_DEBUG:
@@ -73,6 +75,7 @@ bool inst_has_operand(Inst_Type type)
     case INST_JMP:
     case INST_JNZ:
     case INST_JZ:
+    case INST_SWAP:
         return true;
 
     case INST_NOP:
@@ -379,6 +382,20 @@ static Trap lim_execute_inst(Lim *lim)
         }
         break;
 
+    case INST_SWAP:
+        if (lim->stack_size <= inst.operand.as_u64) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        if (inst.operand.as_u64 > 0) {
+            // skip swap with itself
+            uint64_t t = lim->stack[lim->stack_size - 1].as_u64;
+            lim->stack[lim->stack_size - 1].as_u64 =
+                lim->stack[lim->stack_size - 1 - inst.operand.as_u64].as_u64;
+            lim->stack[lim->stack_size - 1 - inst.operand.as_u64].as_u64 = t;
+        }
+        lim->ip++;
+        break;
+
     case INST_HALT:
         lim->halt = true;
         break;
@@ -593,25 +610,27 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
         return (Inst) MAKE_INST_EQ();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JMP)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JMP(sv_to_word(operand));
+            return (Inst) MAKE_INST_JMP(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JMP};
         }
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JNZ)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JNZ(sv_to_word(operand));
+            return (Inst) MAKE_INST_JNZ(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JNZ};
         }
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JZ)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JZ(sv_to_word(operand));
+            return (Inst) MAKE_INST_JZ(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
             return (Inst){.type = INST_JZ};
         }
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_SWAP)))) {
+        return (Inst) MAKE_INST_SWAP(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_HALT)))) {
         return (Inst) MAKE_INST_HALT();
     } else if (sv_equal(inst_name,
@@ -620,6 +639,8 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
     } else {
         fprintf(stderr, "ERROR: unknown instruction `%.*s`\n",
                 (int) inst_name.count, inst_name.data);
+        assert(false);
+        exit(-1);
     }
 
     return (Inst) MAKE_INST_NOP();
