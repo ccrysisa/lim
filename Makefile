@@ -2,8 +2,6 @@ SRC:=src
 BUILD:=build
 TEST:=tests
 
-TARGET:= ./lasm ./lime ./delasm
-
 CFLAGS=-Wall -Wextra -Wswitch-enum -Wmissing-prototypes -std=c11 -pedantic
 LIBS= 
 
@@ -25,12 +23,12 @@ $(BUILD)/nan: $(SRC)/nan.c
 	@if [ ! -d "$(dir $@)" ]; then mkdir -p $(BUILD); fi
 	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
 
-examples: all $(TEST)/fib.lim $(TEST)/123.lim $(TEST)/f123.lasm
-
 $(TEST)/%.lim: $(TEST)/%.lasm
-	./lasm $< $@
+	$(BUILD)/lasm -i $< -o $@
+
+examples: all $(patsubst %.lasm, %.lim, $(wildcard $(TEST)/*.lasm))
 
 clean:
-	@rm -rf $(BUILD) $(TEST)/*.lim $(TARGET)
+	@rm -rf $(BUILD) $(TEST)/*.lim
 
 .PHONY: all clean examples

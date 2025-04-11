@@ -47,6 +47,14 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "fmult";
     case INST_FDIV:
         return "fdiv";
+    case INST_GT:
+        return "gt";
+    case INST_LT:
+        return "lt";
+    case INST_GE:
+        return "ge";
+    case INST_LE:
+        return "le";
     case INST_EQ:
         return "eq";
     case INST_JMP:
@@ -87,6 +95,10 @@ bool inst_has_operand(Inst_Type type)
     case INST_FMINUS:
     case INST_FMULT:
     case INST_FDIV:
+    case INST_GT:
+    case INST_LT:
+    case INST_GE:
+    case INST_LE:
     case INST_EQ:
     case INST_HALT:
     case INST_PRINT_DEBUG:
@@ -332,6 +344,50 @@ static Trap lim_execute_inst(Lim *lim)
         }
         lim->stack[lim->stack_size - 2].as_f64 /=
             lim->stack[lim->stack_size - 1].as_f64;
+        lim->stack_size--;
+        lim->ip++;
+        break;
+
+    case INST_GT:
+        if (lim->stack_size < 2) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack[lim->stack_size - 2].as_i64 =
+            lim->stack[lim->stack_size - 2].as_i64 >
+            lim->stack[lim->stack_size - 1].as_i64;
+        lim->stack_size--;
+        lim->ip++;
+        break;
+
+    case INST_LT:
+        if (lim->stack_size < 2) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack[lim->stack_size - 2].as_i64 =
+            lim->stack[lim->stack_size - 2].as_i64 <
+            lim->stack[lim->stack_size - 1].as_i64;
+        lim->stack_size--;
+        lim->ip++;
+        break;
+
+    case INST_GE:
+        if (lim->stack_size < 2) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack[lim->stack_size - 2].as_i64 =
+            lim->stack[lim->stack_size - 2].as_i64 >=
+            lim->stack[lim->stack_size - 1].as_i64;
+        lim->stack_size--;
+        lim->ip++;
+        break;
+
+    case INST_LE:
+        if (lim->stack_size < 2) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack[lim->stack_size - 2].as_i64 =
+            lim->stack[lim->stack_size - 2].as_i64 <=
+            lim->stack[lim->stack_size - 1].as_i64;
         lim->stack_size--;
         lim->ip++;
         break;
@@ -606,6 +662,14 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
         return (Inst) MAKE_INST_FMULT();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_FDIV)))) {
         return (Inst) MAKE_INST_FDIV();
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_GT)))) {
+        return (Inst) MAKE_INST_GT();
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_LT)))) {
+        return (Inst) MAKE_INST_LT();
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_GE)))) {
+        return (Inst) MAKE_INST_GE();
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_LE)))) {
+        return (Inst) MAKE_INST_LE();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_EQ)))) {
         return (Inst) MAKE_INST_EQ();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JMP)))) {

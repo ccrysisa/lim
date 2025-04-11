@@ -3,35 +3,29 @@
   push 1.0      # sum
   push 1.0      # n!
   push 1.0      # n
-  push 0        # counter
 
 loop:
   # update sum
-  swap 3
+  swap 2
   push 1.0
-  dup 3
+  dup 2
   fdiv
   fplus
-  swap 3
+  swap 2
 
   # update n
-  swap 1
   push 1.0
   fplus
-  swap 1
 
   # update n!
-  swap 2
+  swap 1
   dup 1
   fmult
-  swap 2
+  swap 1
 
-  # update counter
-  push 1
-  plus
   dup 0
-  push 10
-  eq
+  push 10.0
+  ge
   jz loop
 
   halt

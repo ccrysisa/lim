@@ -52,6 +52,10 @@ typedef enum {
     INST_FMINUS,
     INST_FMULT,
     INST_FDIV,
+    INST_GT,
+    INST_LT,
+    INST_GE,
+    INST_LE,
     INST_EQ,
     INST_JMP,
     INST_JNZ,
@@ -123,6 +127,26 @@ typedef struct {
 #define /*Inst*/ MAKE_INST_FDIV(/*void*/) \
     {                                     \
         .type = INST_FDIV                 \
+    }
+
+#define /*Inst*/ MAKE_INST_GT(/*void*/) \
+    {                                   \
+        .type = INST_GT                 \
+    }
+
+#define /*Inst*/ MAKE_INST_LT(/*void*/) \
+    {                                   \
+        .type = INST_LT                 \
+    }
+
+#define /*Inst*/ MAKE_INST_GE(/*void*/) \
+    {                                   \
+        .type = INST_GE                 \
+    }
+
+#define /*Inst*/ MAKE_INST_LE(/*void*/) \
+    {                                   \
+        .type = INST_LE                 \
     }
 
 #define /*Inst*/ MAKE_INST_EQ(/*void*/) \

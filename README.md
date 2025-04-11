@@ -22,13 +22,13 @@ $ make examples
 $ make clean
 
 # Assemble source code to program for virtual machine
-$ ./lasm -i <input.lasm> -o <output.lim>
+$ ./build/lasm -i <input.lasm> -o <output.lim>
 
 # Emulate program by virtual machine
-$ ./lime -i <input.lim>
+$ ./build/lime -i <input.lim>
 
 # Disassemble program
-$ ./delasm -i <input.lim>
+$ ./build/delasm -i <input.lim>
 
 # Generate compile_commands.json (make sure you have intsalled bear)
 $ make clean
