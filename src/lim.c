@@ -67,6 +67,10 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "jz";
     case INST_SWAP:
         return "swap";
+    case INST_CALL:
+        return "call";
+    case INST_RET:
+        return "ret";
     case INST_HALT:
         return "halt";
     case INST_PRINT_DEBUG:
@@ -86,6 +90,7 @@ bool inst_has_operand(Inst_Type type)
     case INST_JNZ:
     case INST_JZ:
     case INST_SWAP:
+    case INST_CALL:
         return true;
 
     case INST_NOP:
@@ -103,6 +108,7 @@ bool inst_has_operand(Inst_Type type)
     case INST_GE:
     case INST_LE:
     case INST_EQ:
+    case INST_RET:
     case INST_HALT:
     case INST_PRINT_DEBUG:
         return false;
@@ -463,6 +469,23 @@ static Trap lim_execute_inst(Lim *lim)
         lim->ip++;
         break;
 
+    case INST_CALL:
+        if (lim->stack_size >= LIM_STACK_CAPACITY) {
+            return TRAP_STACK_OVERFLOW;
+        }
+        lim->stack[lim->stack_size++].as_u64 = lim->ip + 1;
+        lim->ip = inst.operand.as_u64;
+        break;
+
+    case INST_RET:
+        // Calling Convention: after return from function call, the return value
+        // (if exists) should store in the top of stack.
+        if (lim->stack_size < 1) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->ip = lim->stack[--lim->stack_size].as_u64;
+        break;
+
     case INST_HALT:
         lim->halt = true;
         break;
@@ -651,68 +674,74 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
     String_View operand = sv_trim(sv_chop_delim(&line, '#'));
 
     if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_NOP)))) {
-        return (Inst) MAKE_INST_NOP();
+        return MAKE_INST_NOP();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PUSH)))) {
-        return (Inst) MAKE_INST_PUSH(number_literal_as_word(operand));
+        return MAKE_INST_PUSH(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_POP)))) {
-        return (Inst) MAKE_INST_POP();
+        return MAKE_INST_POP();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_DUP)))) {
-        return (Inst) MAKE_INST_DUP(number_literal_as_word(operand));
+        return MAKE_INST_DUP(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PLUS)))) {
-        return (Inst) MAKE_INST_PLUS();
+        return MAKE_INST_PLUS();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_MINUS)))) {
-        return (Inst) MAKE_INST_MINUS();
+        return MAKE_INST_MINUS();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_MULT)))) {
-        return (Inst) MAKE_INST_MULT();
+        return MAKE_INST_MULT();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_DIV)))) {
-        return (Inst) MAKE_INST_DIV();
+        return MAKE_INST_DIV();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_FPLUS)))) {
-        return (Inst) MAKE_INST_FPLUS();
+        return MAKE_INST_FPLUS();
     } else if (sv_equal(inst_name,
                         cstr_as_sv(inst_type_as_cstr(INST_FMINUS)))) {
-        return (Inst) MAKE_INST_FMINUS();
+        return MAKE_INST_FMINUS();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_FMULT)))) {
-        return (Inst) MAKE_INST_FMULT();
+        return MAKE_INST_FMULT();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_FDIV)))) {
-        return (Inst) MAKE_INST_FDIV();
+        return MAKE_INST_FDIV();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_GT)))) {
-        return (Inst) MAKE_INST_GT();
+        return MAKE_INST_GT();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_LT)))) {
-        return (Inst) MAKE_INST_LT();
+        return MAKE_INST_LT();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_GE)))) {
-        return (Inst) MAKE_INST_GE();
+        return MAKE_INST_GE();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_LE)))) {
-        return (Inst) MAKE_INST_LE();
+        return MAKE_INST_LE();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_EQ)))) {
-        return (Inst) MAKE_INST_EQ();
+        return MAKE_INST_EQ();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JMP)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JMP(number_literal_as_word(operand));
+            return MAKE_INST_JMP(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
-            return (Inst){.type = INST_JMP};
+            return MAKE_INST_JMP_WITHOUT_OPERAND();
         }
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JNZ)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JNZ(number_literal_as_word(operand));
+            return MAKE_INST_JNZ(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
-            return (Inst){.type = INST_JNZ};
+            return MAKE_INST_JNZ_WITHOUT_OPERAND();
         }
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_JZ)))) {
         if (operand.count > 0 && isdigit(*operand.data)) {
-            return (Inst) MAKE_INST_JZ(number_literal_as_word(operand));
+            return MAKE_INST_JZ(number_literal_as_word(operand));
         } else {
             label_table_push_unresolved_jmp(lasm, addr, operand);
-            return (Inst){.type = INST_JZ};
+            return MAKE_INST_JZ_WITHOUT_OPERAND();
         }
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_SWAP)))) {
-        return (Inst) MAKE_INST_SWAP(number_literal_as_word(operand));
+        return MAKE_INST_SWAP(number_literal_as_word(operand));
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_CALL)))) {
+        // call instruction only support label
+        label_table_push_unresolved_jmp(lasm, addr, operand);
+        return MAKE_INST_CALL_WITHOUT_OPERAND();
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_RET)))) {
+        return MAKE_INST_RET();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_HALT)))) {
-        return (Inst) MAKE_INST_HALT();
+        return MAKE_INST_HALT();
     } else if (sv_equal(inst_name,
                         cstr_as_sv(inst_type_as_cstr(INST_PRINT_DEBUG)))) {
-        return (Inst) MAKE_INST_PRINT_DEBUG();
+        return MAKE_INST_PRINT_DEBUG();
     } else {
         fprintf(stderr, "ERROR: unknown instruction `%.*s`\n",
                 (int) inst_name.count, inst_name.data);
@@ -720,7 +749,7 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
         exit(-1);
     }
 
-    return (Inst) MAKE_INST_NOP();
+    return MAKE_INST_NOP();
 }
 
 void lim_translate_source(String_View source, Lim *lim, Lasm *lasm)
@@ -791,8 +820,6 @@ const char *shift_args(int *argc, char ***argv)
     *argc -= 1;
     return result;
 }
-
-
 
 Lim lim = {0};
 Lasm lasm = {0};

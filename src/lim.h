@@ -62,6 +62,8 @@ typedef enum {
     INST_JNZ,
     INST_JZ,
     INST_SWAP,
+    INST_CALL,
+    INST_RET,
     INST_HALT,
     INST_PRINT_DEBUG,
     INST_NUM,
@@ -76,116 +78,169 @@ typedef struct {
 } Inst;
 
 #define /*Inst*/ MAKE_INST_NOP(/*void*/) \
+    (Inst)                               \
     {                                    \
         .type = INST_NOP                 \
     }
 
 #define /*Inst*/ MAKE_INST_PUSH(/*Word*/ value) \
+    (Inst)                                      \
     {                                           \
         .type = INST_PUSH, .operand = (value),  \
     }
 
 #define /*Inst*/ MAKE_INST_POP(/*void*/) \
+    (Inst)                               \
     {                                    \
         .type = INST_POP                 \
     }
 
 #define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
+    (Inst)                                      \
     {                                           \
         .type = INST_DUP, .operand = (offset),  \
     }
 
 #define /*Inst*/ MAKE_INST_PLUS(/*void*/) \
+    (Inst)                                \
     {                                     \
         .type = INST_PLUS                 \
     }
 
 #define /*Inst*/ MAKE_INST_MINUS(/*void*/) \
+    (Inst)                                 \
     {                                      \
         .type = INST_MINUS                 \
     }
 
 #define /*Inst*/ MAKE_INST_MULT(/*void*/) \
+    (Inst)                                \
     {                                     \
         .type = INST_MULT                 \
     }
 
 #define /*Inst*/ MAKE_INST_DIV(/*void*/) \
+    (Inst)                               \
     {                                    \
         .type = INST_DIV                 \
     }
 
 #define /*Inst*/ MAKE_INST_FPLUS(/*void*/) \
+    (Inst)                                 \
     {                                      \
         .type = INST_FPLUS                 \
     }
 
 #define /*Inst*/ MAKE_INST_FMINUS(/*void*/) \
+    (Inst)                                  \
     {                                       \
         .type = INST_FMINUS                 \
     }
 
 #define /*Inst*/ MAKE_INST_FMULT(/*void*/) \
+    (Inst)                                 \
     {                                      \
         .type = INST_FMULT                 \
     }
 
 #define /*Inst*/ MAKE_INST_FDIV(/*void*/) \
+    (Inst)                                \
     {                                     \
         .type = INST_FDIV                 \
     }
 
 #define /*Inst*/ MAKE_INST_GT(/*void*/) \
+    (Inst)                              \
     {                                   \
         .type = INST_GT                 \
     }
 
 #define /*Inst*/ MAKE_INST_LT(/*void*/) \
+    (Inst)                              \
     {                                   \
         .type = INST_LT                 \
     }
 
 #define /*Inst*/ MAKE_INST_GE(/*void*/) \
+    (Inst)                              \
     {                                   \
         .type = INST_GE                 \
     }
 
 #define /*Inst*/ MAKE_INST_LE(/*void*/) \
+    (Inst)                              \
     {                                   \
         .type = INST_LE                 \
     }
 
 #define /*Inst*/ MAKE_INST_EQ(/*void*/) \
+    (Inst)                              \
     {                                   \
         .type = INST_EQ                 \
     }
 
 #define /*Inst*/ MAKE_INST_JMP(/*Word*/ addr) \
+    (Inst)                                    \
     {                                         \
         .type = INST_JMP, .operand = (addr),  \
     }
 
+#define /*Inst*/ MAKE_INST_JMP_WITHOUT_OPERAND(/*void*/) \
+    (Inst)                                               \
+    {                                                    \
+        .type = INST_JMP                                 \
+    }
+
 #define /*Inst*/ MAKE_INST_JNZ(/*Word*/ addr) \
+    (Inst)                                    \
     {                                         \
         .type = INST_JNZ, .operand = (addr),  \
     }
 
+#define /*Inst*/ MAKE_INST_JNZ_WITHOUT_OPERAND(/*void*/) \
+    (Inst)                                               \
+    {                                                    \
+        .type = INST_JNZ                                 \
+    }
+
 #define /*Inst*/ MAKE_INST_JZ(/*Word*/ addr) \
+    (Inst)                                   \
     {                                        \
         .type = INST_JZ, .operand = (addr),  \
     }
 
+#define /*Inst*/ MAKE_INST_JZ_WITHOUT_OPERAND(/*void*/) \
+    (Inst)                                              \
+    {                                                   \
+        .type = INST_JZ                                 \
+    }
+
 #define /*Inst*/ MAKE_INST_SWAP(/*Word*/ offset) \
+    (Inst)                                       \
     {                                            \
         .type = INST_SWAP, .operand = (offset),  \
     }
 
+#define /*Inst*/ MAKE_INST_CALL_WITHOUT_OPERAND(/*void*/) \
+    (Inst)                                                \
+    {                                                     \
+        .type = INST_CALL                                 \
+    }
+
+#define /*Inst*/ MAKE_INST_RET(/*void*/) \
+    (Inst)                               \
+    {                                    \
+        .type = INST_RET                 \
+    }
+
 #define /*Inst*/ MAKE_INST_HALT(/*void*/) \
+    (Inst)                                \
     {                                     \
         .type = INST_HALT                 \
     }
 
 #define /*Inst*/ MAKE_INST_PRINT_DEBUG(/*void*/) \
+    (Inst)                                       \
     {                                            \
         .type = INST_PRINT_DEBUG                 \
     }
