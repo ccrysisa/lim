@@ -29,6 +29,8 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "nop";
     case INST_PUSH:
         return "push";
+    case INST_POP:
+        return "pop";
     case INST_DUP:
         return "dup";
     case INST_PLUS:
@@ -87,6 +89,7 @@ bool inst_has_operand(Inst_Type type)
         return true;
 
     case INST_NOP:
+    case INST_POP:
     case INST_PLUS:
     case INST_MINUS:
     case INST_MULT:
@@ -245,6 +248,14 @@ static Trap lim_execute_inst(Lim *lim)
             return TRAP_STACK_OVERFLOW;
         }
         lim->stack[lim->stack_size++] = inst.operand;
+        lim->ip++;
+        break;
+
+    case INST_POP:
+        if (lim->stack_size < 1) {
+            return TRAP_STACK_UNDERFLOW;
+        }
+        lim->stack_size--;
         lim->ip++;
         break;
 
@@ -643,6 +654,8 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
         return (Inst) MAKE_INST_NOP();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PUSH)))) {
         return (Inst) MAKE_INST_PUSH(number_literal_as_word(operand));
+    } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_POP)))) {
+        return (Inst) MAKE_INST_POP();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_DUP)))) {
         return (Inst) MAKE_INST_DUP(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_PLUS)))) {

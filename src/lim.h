@@ -43,6 +43,7 @@ static_assert(sizeof(Word) == 8,
 typedef enum {
     INST_NOP = 0,
     INST_PUSH,
+    INST_POP,
     INST_DUP,
     INST_PLUS,
     INST_MINUS,
@@ -82,6 +83,11 @@ typedef struct {
 #define /*Inst*/ MAKE_INST_PUSH(/*Word*/ value) \
     {                                           \
         .type = INST_PUSH, .operand = (value),  \
+    }
+
+#define /*Inst*/ MAKE_INST_POP(/*void*/) \
+    {                                    \
+        .type = INST_POP                 \
     }
 
 #define /*Inst*/ MAKE_INST_DUP(/*Word*/ offset) \
