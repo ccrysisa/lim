@@ -71,6 +71,8 @@ const char *inst_type_as_cstr(Inst_Type type)
         return "call";
     case INST_RET:
         return "ret";
+    case INST_NATIVE:
+        return "native";
     case INST_HALT:
         return "halt";
     case INST_PRINT_DEBUG:
@@ -91,6 +93,7 @@ bool inst_has_operand(Inst_Type type)
     case INST_JZ:
     case INST_SWAP:
     case INST_CALL:
+    case INST_NATIVE:
         return true;
 
     case INST_NOP:
@@ -486,6 +489,17 @@ Trap lim_execute_inst(Lim *lim)
         lim->ip = lim->stack[--lim->stack_size].as_u64;
         break;
 
+    case INST_NATIVE:
+        if (inst.operand.as_u64 >= lim->natives_size) {
+            return TRAP_ILLEGAL_OPERAND;
+        }
+        Trap trap = lim->natives[inst.operand.as_u64](lim);
+        if (trap != TRAP_OK) {
+            return trap;
+        }
+        lim->ip++;
+        break;
+
     case INST_HALT:
         lim->halt = true;
         break;
@@ -737,6 +751,9 @@ static Inst lim_translate_line(Lasm *lasm, Inst_Addr addr, String_View line)
         return MAKE_INST_CALL_WITHOUT_OPERAND();
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_RET)))) {
         return MAKE_INST_RET();
+    } else if (sv_equal(inst_name,
+                        cstr_as_sv(inst_type_as_cstr(INST_NATIVE)))) {
+        return MAKE_INST_NATIVE(number_literal_as_word(operand));
     } else if (sv_equal(inst_name, cstr_as_sv(inst_type_as_cstr(INST_HALT)))) {
         return MAKE_INST_HALT();
     } else if (sv_equal(inst_name,
@@ -810,6 +827,37 @@ void lim_dump_stack(FILE *stream, const Lim *lim)
     } else {
         fprintf(stream, "  [empty]\n");
     }
+}
+
+static Trap lim_alloc(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    lim->stack[lim->stack_size - 1].as_ptr =
+        malloc(lim->stack[lim->stack_size - 1].as_u64);
+    return TRAP_OK;
+}
+
+static Trap lim_free(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    free(lim->stack[--lim->stack_size].as_ptr);
+    return TRAP_OK;
+}
+
+void lim_attach_natives(Lim *lim)
+{
+    lim_push_native_func(lim, lim_alloc);  // native number 0
+    lim_push_native_func(lim, lim_free);   // native number 1
+}
+
+void lim_push_native_func(Lim *lim, Lim_Native_Func func)
+{
+    assert(lim->natives_size < LIM_NATIVES_CAPACITY);
+    lim->natives[lim->natives_size++] = func;
 }
 
 const char *shift_args(int *argc, char ***argv)

@@ -32,6 +32,8 @@ int main(int argc, char *argv[])
     }
 
     lim_load_program_from_file(&lim, input_file_path);
+    lim_attach_natives(&lim);
+
     Trap trap = TRAP_OK;
     if (debug) {
         while (!lim.halt) {

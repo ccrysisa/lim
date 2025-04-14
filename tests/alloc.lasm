@@ -1,0 +1,9 @@
+#  test alloc and free native function call
+  jmp main
+
+main:
+  push 420
+  native 0      # alloc
+  native 1      # free
+
+  halt

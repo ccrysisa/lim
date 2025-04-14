@@ -13,6 +13,7 @@
 #define ARRAY_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
 #define LIM_STACK_CAPACITY 1024
 #define LIM_PROGRAM_CAPACITY 1024
+#define LIM_NATIVES_CAPACITY 1024
 #define LABEL_CAPACITY 1024
 #define UNRESOLVED_JMPS_CAPACITY 1024
 
@@ -64,6 +65,7 @@ typedef enum {
     INST_SWAP,
     INST_CALL,
     INST_RET,
+    INST_NATIVE,
     INST_HALT,
     INST_PRINT_DEBUG,
     INST_NUM,
@@ -233,6 +235,12 @@ typedef struct {
         .type = INST_RET                 \
     }
 
+#define /*Inst*/ MAKE_INST_NATIVE(/*Word*/ number) \
+    (Inst)                                         \
+    {                                              \
+        .type = INST_NATIVE, .operand = number,    \
+    }
+
 #define /*Inst*/ MAKE_INST_HALT(/*void*/) \
     (Inst)                                \
     {                                     \
@@ -287,7 +295,11 @@ void label_table_push_unresolved_jmp(Lasm *lasm,
 extern Lasm lasm;
 
 /* Lisp Virtual Machine */
-typedef struct {
+typedef struct Lim Lim;
+
+typedef Trap (*Lim_Native_Func)(Lim *);
+
+struct Lim {
     /* Stack */
     Word stack[LIM_STACK_CAPACITY];
     uint64_t stack_size;
@@ -296,10 +308,14 @@ typedef struct {
     Inst program[LIM_PROGRAM_CAPACITY];
     uint64_t program_size;
 
+    /* Natives */
+    Lim_Native_Func natives[LIM_NATIVES_CAPACITY];
+    uint64_t natives_size;
+
     /* State */
     Inst_Addr ip;
     bool halt;
-} Lim;
+};
 
 Trap lim_execute_inst(Lim *lim);
 Trap lim_execute_program(Lim *lim);
@@ -312,6 +328,10 @@ String_View slurp_file(const char *file_path);
 Word number_literal_as_word(String_View sv);
 void lim_translate_source(String_View source, Lim *lim, Lasm *lasm);
 void lim_dump_stack(FILE *stream, const Lim *lim);
+
+void lim_attach_natives(Lim *lim);
+void lim_push_native_func(Lim *lim, Lim_Native_Func func);
+
 extern Lim lim;
 
 const char *shift_args(int *argc, char ***argv);
