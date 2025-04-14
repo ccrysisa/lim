@@ -301,6 +301,7 @@ typedef struct {
     bool halt;
 } Lim;
 
+Trap lim_execute_inst(Lim *lim);
 Trap lim_execute_program(Lim *lim);
 void lim_load_program_from_memory(Lim *lim,
                                   Inst *program,

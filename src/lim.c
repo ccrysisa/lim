@@ -237,7 +237,7 @@ void label_table_push_unresolved_jmp(Lasm *lasm,
     };
 }
 
-static Trap lim_execute_inst(Lim *lim)
+Trap lim_execute_inst(Lim *lim)
 {
     if (lim->ip >= lim->program_size) {
         return TRAP_ILLEGAL_INST_ACCESS;

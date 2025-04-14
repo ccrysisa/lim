@@ -4,6 +4,7 @@ int main(int argc, char *argv[])
 {
     const char *program = shift_args(&argc, &argv);
     const char *input_file_path = NULL;
+    bool debug = false;
 
     while (argc > 0) {
         const char *flag = shift_args(&argc, &argv);
@@ -17,6 +18,8 @@ int main(int argc, char *argv[])
         } else if (!strcmp(flag, "-h")) {
             fprintf(stdout, "Usage: %s -i <input.lim> [-h]\n", program);
             return 0;
+        } else if (!strcmp(flag, "-d")) {
+            debug = true;
         } else {
             fprintf(stderr, "Error: unknown flag `%s`\n", flag);
             return 1;
@@ -29,7 +32,26 @@ int main(int argc, char *argv[])
     }
 
     lim_load_program_from_file(&lim, input_file_path);
-    Trap trap = lim_execute_program(&lim);
+    Trap trap = TRAP_OK;
+    if (debug) {
+        while (!lim.halt) {
+            lim_dump_stack(stdout, &lim);
+            const Inst *const inst = &lim.program[lim.ip];
+            printf("> %s", inst_type_as_cstr(inst->type));
+            if (inst_has_operand(inst->type)) {
+                printf(" %lu\n", inst->operand.as_u64);
+            }
+
+            trap = lim_execute_inst(&lim);
+            if (trap != TRAP_OK) {
+                break;
+            }
+
+            getchar();
+        }
+    } else {
+        trap = lim_execute_program(&lim);
+    }
     lim_dump_stack(stdout, &lim);
 
     if (trap != TRAP_OK) {

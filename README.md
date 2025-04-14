@@ -27,6 +27,9 @@ $ ./build/lasm -i <input.lasm> -o <output.lim>
 # Emulate program by virtual machine
 $ ./build/lime -i <input.lim>
 
+# Emulate program by virtual machine in debug mode
+$ ./build/lime -i <input.lim> -d
+
 # Disassemble program
 $ ./build/delasm -i <input.lim>
 
