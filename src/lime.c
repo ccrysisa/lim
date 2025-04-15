@@ -43,8 +43,9 @@ int main(int argc, char *argv[])
             const Inst *const inst = &lim.program[lim.ip];
             printf("> %s", inst_type_as_cstr(inst->type));
             if (inst_has_operand(inst->type)) {
-                printf(" %lu\n", inst->operand.as_u64);
+                printf(" %lu", inst->operand.as_u64);
             }
+            printf("\n");
 
             trap = lim_execute_inst(&lim);
             lim_dump_stack(stdout, &lim);
@@ -52,7 +53,10 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            getchar();
+            char c = getchar();
+            if (c == 'q' || c == 'Q') {
+                exit(1);
+            }
         }
     } else {
         trap = lim_execute_program(&lim);

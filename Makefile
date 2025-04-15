@@ -2,7 +2,7 @@ SRC:=src
 BUILD:=build
 TEST:=tests
 
-CFLAGS=-Wall -Wextra -Wswitch-enum -Wmissing-prototypes -std=c11 -pedantic
+CFLAGS=-Wall -Wextra -Wswitch-enum -Wmissing-prototypes -O3 -std=c11 -pedantic
 LIBS= 
 
 all: $(BUILD)/lasm $(BUILD)/lime $(BUILD)/delasm

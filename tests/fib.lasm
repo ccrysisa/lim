@@ -1,16 +1,23 @@
-  jmp 1
-# First two fibonacci numbers
-  push 0 # first
-  push 1 # second
-  jmp loop
-loop: # The loop
-  dup 1
-  dup 1
-  plus
-# Compare target
+# Calculate fibonacci numbers
+# Wikipedia: https://en.wikipedia.org/wiki/Fibonacci_sequence
+  jmp main
+
+main:
+  push 100       # N - the amount of iterations
+  push 0         # 1st fibonacci number
+  push 1         # 2nd fibonacci number
+loop:
+  swap 1
   dup 0
-  push 2584
-  eq
-  jz loop  # jump by loop
+  native 2      # print_i64
+  dup 1
+  plus          # f(n) = f(n-1) + f(n-2)
+
+  swap 2
+  push 1
+  minus
+  swap 2
+  dup 2
+  jnz loop
 
   halt
