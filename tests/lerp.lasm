@@ -36,15 +36,18 @@ main:
   push 420.0
   push 0.0
   call lerp     # 69.0
+  native 4      # print_f64
 
   push 69.0
   push 420.0
   push 1.0
   call lerp     # 420.0
+  native 4      # print_f64
 
   push 69.0
   push 420.0
   push 0.5
   call lerp     # 244.5
+  native 4      # print_f64
 
   halt

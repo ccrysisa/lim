@@ -848,10 +848,50 @@ static Trap lim_free(Lim *lim)
     return TRAP_OK;
 }
 
+static Trap lim_print_u64(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    printf("%lu\n", lim->stack[--lim->stack_size].as_u64);
+    return TRAP_OK;
+}
+
+static Trap lim_print_i64(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    printf("%ld\n", lim->stack[--lim->stack_size].as_i64);
+    return TRAP_OK;
+}
+
+static Trap lim_print_f64(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    printf("%lf\n", lim->stack[--lim->stack_size].as_f64);
+    return TRAP_OK;
+}
+
+static Trap lim_print_ptr(Lim *lim)
+{
+    if (lim->stack_size < 1) {
+        return TRAP_STACK_UNDERFLOW;
+    }
+    printf("%p\n", lim->stack[--lim->stack_size].as_ptr);
+    return TRAP_OK;
+}
+
 void lim_attach_natives(Lim *lim)
 {
-    lim_push_native_func(lim, lim_alloc);  // native number 0
-    lim_push_native_func(lim, lim_free);   // native number 1
+    lim_push_native_func(lim, lim_alloc);      // native number 0
+    lim_push_native_func(lim, lim_free);       // native number 1
+    lim_push_native_func(lim, lim_print_u64);  // native number 2
+    lim_push_native_func(lim, lim_print_i64);  // native number 3
+    lim_push_native_func(lim, lim_print_f64);  // native number 4
+    lim_push_native_func(lim, lim_print_ptr);  // native number 5
 }
 
 void lim_push_native_func(Lim *lim, Lim_Native_Func func)

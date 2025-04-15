@@ -36,5 +36,6 @@ loop:
   pop
   push 4.0
   fmult
+  native 4    # print_f64
 
   halt

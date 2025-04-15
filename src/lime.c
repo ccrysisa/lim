@@ -36,8 +36,10 @@ int main(int argc, char *argv[])
 
     Trap trap = TRAP_OK;
     if (debug) {
+        // In debug mode, stack as state and instruction as event to construct a
+        // FSM
+        lim_dump_stack(stdout, &lim);
         while (!lim.halt) {
-            lim_dump_stack(stdout, &lim);
             const Inst *const inst = &lim.program[lim.ip];
             printf("> %s", inst_type_as_cstr(inst->type));
             if (inst_has_operand(inst->type)) {
@@ -45,6 +47,7 @@ int main(int argc, char *argv[])
             }
 
             trap = lim_execute_inst(&lim);
+            lim_dump_stack(stdout, &lim);
             if (trap != TRAP_OK) {
                 break;
             }
@@ -54,7 +57,6 @@ int main(int argc, char *argv[])
     } else {
         trap = lim_execute_program(&lim);
     }
-    lim_dump_stack(stdout, &lim);
 
     if (trap != TRAP_OK) {
         fprintf(stderr, "Error: %s\n", trap_as_cstr(trap));

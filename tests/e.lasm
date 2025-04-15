@@ -28,4 +28,8 @@ loop:
   ge
   jz loop
 
+  pop
+  pop
+  native 4  # print_f64
+
   halt
